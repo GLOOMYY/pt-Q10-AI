@@ -208,7 +208,10 @@ public static class StudentReport
             ["asignaturasPerdidas"] = new JsonObject
             {
                 ["estudiantes"] = lost,
-                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 5"),
+                // R-RES-02, ESC-COO-01: a loss by absences in the list is also supported by Artículo 11.
+                ["reglasACitar"] = lostByAbsences.Count > 0
+                    ? new JsonArray(RuleCitation(Regulation, "Artículo 5"), RuleCitation(Regulation, "Artículo 11"))
+                    : new JsonArray(RuleCitation(Regulation, "Artículo 5")),
             },
             ["perdidaPorInasistencia"] = new JsonObject
             {
@@ -267,7 +270,7 @@ public static class StudentReport
             ["asignatura"] = c.Name,
             ["definitiva"] = c.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData,
             ["motivo"] = c.Outcome == CourseOutcome.LostByAbsences
-                ? "perdida por inasistencia (definitiva 0.0)"
+                ? "perdida por inasistencia (definitiva 0.0, Artículo 11)"
                 : $"definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)}",
         }),
     ];
