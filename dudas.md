@@ -103,9 +103,9 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Fecha:** 2026-11-26
 - **Rol / rama:** devops / devops/f0b (PR #2)
 - **Referencia:** AGENTS §12.5, F5 (`evals/` contra `docker compose`)
-- **Tipo:** atasco
-- **Bloqueante:** no (para F0–F4); **sí** para F5 si persiste
-- **Descripción:** desde el equipo local no se resuelven `mcr.microsoft.com` ni `docker.io`, así que no se pudo construir la imagen ni levantar `docker compose` en local. La CI sí lo verificó (`backend-1 Healthy`, `GET /api/salud -> 200`).
+- **Tipo:** atasco (1 intento)
+- **Bloqueante:** no
+- **Descripción:** (sería bloqueante para F5 si persistiera). Desde el equipo local no se resuelven `mcr.microsoft.com` ni `docker.io`, así que no se pudo construir la imagen ni levantar `docker compose` en local. La CI sí lo verificó (`backend-1 Healthy`, `GET /api/salud -> 200`).
 - **Qué quedó pendiente:** verificación local de `docker compose up`. En F5, `evals/` necesita el sistema levantado con `docker compose` y el LLM real.
 - **Propuesta:** el responsable revisa la red/DNS de Docker Desktop antes de F5; si no, F5 puede levantar el backend con `dotnet run` y la API simulada con `node` como alternativa documentada.
 - **Respuesta:** _Comprobación del orquestador: desde la sesión principal `docker pull node:22-alpine` funciona; la falta de red era del entorno aislado del subagente. Para F5 el orquestador levanta `docker compose` desde la sesión principal si el subagente no puede._
@@ -127,7 +127,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Fecha:** 2026-11-26
 - **Rol / rama:** devops / devops/f0b (PR #2)
 - **Referencia:** —
-- **Tipo:** atasco (incidente)
+- **Tipo:** atasco (1 intento)
 - **Bloqueante:** no
 - **Descripción:** para limpiar sus pruebas, devops ejecutó `taskkill /IM node.exe /F`, que termina **todos** los procesos Node del equipo, no solo los suyos. Pudo afectar a otros procesos del responsable.
 - **Qué quedó pendiente:** que el responsable revise si algún proceso Node suyo se cerró.
@@ -145,3 +145,123 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** un modo estricto en la CI y corregir el comentario.
 - **Propuesta:** devops lo corrige en su próxima tarea (F4).
 - **Respuesta:** _Resuelta por el orquestador: se asigna a devops en F4._
+
+## DUDA-13 · `Program.cs` no invoca `AddApplication()` ni `MapAssistant()`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f1a (PR #4)
+- **Referencia:** DUDA-01, AGENTS §5, SPEC §5
+- **Tipo:** permiso
+- **Bloqueante:** no
+- **Descripción:** `Program.cs` es de plataforma. Mientras no los invoque, `POST /api/asistente/preguntar` no existe en la aplicación real; las pruebas de Api montan su propio servidor.
+- **Qué quedó pendiente:** registrar `AddApplication()` y `MapAssistant()` en `Program.cs`.
+- **Propuesta:** asignarlo a plataforma antes de F2.
+- **Respuesta:** _Resuelta por el orquestador: asignada a plataforma en F1b (rama `plataforma/f1b`)._
+
+## DUDA-14 · `FrameworkReference` de ASP.NET Core en `TutorFlow.Application`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo y revisor / nucleo/f1a (PR #4)
+- **Referencia:** AGENTS §5–6, FABRICA §3
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** `AddApplication()` necesita las abstracciones de inyección de dependencias y `Directory.Packages.props` no tenía su versión, así que `TutorFlow.Application.csproj` referencia `Microsoft.AspNetCore.App`. Ningún tipo de ASP.NET Core se usa en Application, pero deja la dependencia al alcance de la capa.
+- **Qué quedó pendiente:** cambiar a `PackageReference` de `Microsoft.Extensions.*`.
+- **Propuesta:** plataforma agrega las versiones y cambia la referencia.
+- **Respuesta:** _Resuelta por el orquestador: asignada a plataforma en F1b._
+
+## DUDA-15 · `usuario.id` ausente o que no es texto
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f1a (PR #4)
+- **Referencia:** SPEC §5.0, R-SEG-04, D-08, D-26, ESC-ENT-11, ESC-ENT-17
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** §5.0 da 400 solo si falta `pregunta` o `usuario` o el `rol` es inválido, y D-26 da 403 al ID vacío. No se define qué pasa si falta el campo `id` o si viene como número. Implementado: `id` ausente → 403 (como vacío); `id` no textual → 400 (cuerpo que no cumple el contrato, como ESC-ENT-11).
+- **Qué quedó pendiente:** nada; es fácil de cambiar.
+- **Propuesta:** confirmar este comportamiento.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-16 · Variable de entorno para el timeout de la API simulada
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** datos / datos/f1b (PR #6)
+- **Referencia:** R-QA-04, R-DEP-02, AGENTS §7
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** R-QA-04 fija 5 s para la API simulada y AGENTS §7 pide que los timeouts se lean de la configuración, pero R-DEP-02 no define la variable. Datos usó `MOCK_API_TIMEOUT_SECONDS`, opcional, con valor por defecto 5.
+- **Qué quedó pendiente:** documentarla (el SPEC solo lo edita el responsable).
+- **Propuesta:** mantener la variable opcional con el valor por defecto del SPEC y que el responsable la añada a R-DEP-02 si lo desea; devops la documenta en `.env.example`.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-17 · La imagen Docker no incluye el corpus `material/reglamento`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** conocimiento / conocimiento/f1b (PR #7)
+- **Referencia:** R-FUE-01, R-DEP-01
+- **Tipo:** ambigüedad
+- **Bloqueante:** no (lo será al cablear `AddKnowledge()` en el arranque)
+- **Descripción:** `.dockerignore` excluye `material/` y el Dockerfile solo copia `src/backend/`, así que la imagen no contiene el corpus y `AddKnowledge()` fallaría al arrancar en Docker.
+- **Qué quedó pendiente:** que el corpus llegue a la imagen.
+- **Propuesta:** devops copia `material/reglamento` (solo los tres documentos vigentes o la carpeta completa; el 2023 no se indexa de todas formas) a `/app/material/reglamento` en la etapa de runtime, y documenta `KNOWLEDGE_CORPUS_PATH` si se usa otra ruta. Se hace junto con el cableado de plataforma.
+- **Respuesta:** _Resuelta por el orquestador: asignada a devops antes de cablear `AddKnowledge()`._
+
+## DUDA-18 · Variable `KNOWLEDGE_CORPUS_PATH` fuera de R-DEP-02
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** conocimiento / conocimiento/f1b (PR #7)
+- **Referencia:** R-DEP-02, AGENTS §7
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** la ruta del corpus es configurable con `KNOWLEDGE_CORPUS_PATH`, opcional; si no está, se busca `material/reglamento` junto al binario y hacia arriba. No figura en R-DEP-02.
+- **Qué quedó pendiente:** documentarla.
+- **Propuesta:** igual que DUDA-16: opcional, documentada por devops en `.env.example`; el responsable decide si la añade a R-DEP-02.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-19 · Criterios adicionales de "dato inconsistente"
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** dominio / dominio/f1b (PR #8)
+- **Referencia:** R-CAL-12, D-20
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** R-CAL-12 nombra la fila de notas sin asistencia (o al revés) y la nota fuera de 0.0–5.0. Dominio también trata como inconsistentes los créditos faltantes o ≤ 0, las clases programadas faltantes o ≤ 0 y las inasistencias negativas, porque con ellos no se puede calcular. Ningún dato de prueba tiene estos casos.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantenerlo; el responsable puede ampliar R-CAL-12 para nombrarlo.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-20 · Asignatura perdida por inasistencia con un corte sin nota
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** dominio / dominio/f1b (PR #8)
+- **Referencia:** R-CAL-05, R-CAL-06
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** con faltas > 15 % y un corte `null`, R-CAL-06 ("0.0 sin importar las notas de los cortes") y R-CAL-05 ("sin corte no hay definitiva") chocan. Implementado: prevalece la pérdida por inasistencia (definitiva 0.0, entra en el promedio). Ningún estudiante de prueba tiene este caso.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** confirmar la precedencia de R-CAL-06.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-21 · Cuándo una conclusión provisional pasa a "no determinable"
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** dominio / dominio/f1b (PR #8)
+- **Referencia:** R-CAL-10, R-BEC-01, R-BEC-02, D-05, D-23
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** R-CAL-10 pide informar como provisionales las conclusiones que dependen de un promedio provisional. Implementado: se evalúa con la asistencia desconocida como "no perdida" y como "perdida"; si ambos resultados coinciden se informa ese resultado como provisional (EST-003: no elegible para beca y sin prueba académica en ambos casos, como dice §6.10); si difieren, "no determinable". Las asignaturas inconsistentes (R-CAL-12) se tratan como las que no tienen definitiva para la beca (D-05: "no determinable").
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** confirmar el criterio.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-22 · Tipo de asignatura no habilitable
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** dominio / dominio/f1b (PR #8)
+- **Referencia:** R-HAB-02
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** la API simulada no indica si una asignatura es práctica profesional o trabajo de grado. La regla recibe ese dato del llamador y por defecto es "habilitable por tipo".
+- **Qué quedó pendiente:** nada con los datos actuales.
+- **Propuesta:** el caso de uso lo deja en "no es práctica ni trabajo de grado" mientras los datos no traigan el tipo; no se deduce por el nombre.
+- **Respuesta:** _Resuelta por el orquestador: se aplica la propuesta (no se inventa el tipo)._
