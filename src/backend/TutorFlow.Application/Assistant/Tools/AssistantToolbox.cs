@@ -27,6 +27,7 @@ public sealed class AssistantToolbox
 
     private const string Regulation = "reglamento_academico_2025.md";
     private const string Evaluation = "evaluacion_y_calificaciones.md";
+    private const string Welfare = "bienestar_y_becas.md";
 
     // Words of the heading and table of Evaluación "Sección 2" (cortes de evaluación y su peso).
     private const string CutWeightsQuery = "cortes de evaluación semanas peso";
@@ -598,6 +599,12 @@ public sealed class AssistantToolbox
         {
             state.BackRule(new Citation(Regulation, "Artículo 11"), "inasistencia");
         }
+
+        // R-RES-02, R-BEC-01, ESC-COO-04: every evaluation of the data computes the performance scholarship, so an
+        // answer that applies it ("beca por/de rendimiento") also cites its rule, bienestar_y_becas.md Sección 3.1.
+        // The socioeconomic scholarship (Sección 3.2) never matches these triggers.
+        state.BackRule(new Citation(Welfare, "Sección 3.1"), "beca por rendimiento");
+        state.BackRule(new Citation(Welfare, "Sección 3.1"), "beca de rendimiento");
 
         return (evaluation, attendance);
     }
