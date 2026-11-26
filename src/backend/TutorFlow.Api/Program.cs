@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using TutorFlow.Api.Endpoints;
+using TutorFlow.Application;
 using TutorFlow.Infrastructure;
 
 // R-DEP-02: all configuration comes from environment variables (part of IConfiguration by default).
@@ -14,7 +15,8 @@ if (string.IsNullOrEmpty(builder.Configuration["ASPNETCORE_URLS"])
     builder.WebHost.UseUrls("http://0.0.0.0:8080");
 }
 
-// Each layer registers its own services (AGENTS 5). AddApplication() is owned by nucleo and is added from F1.
+// Each layer registers its own services (AGENTS 5).
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -31,6 +33,7 @@ catch (OptionsValidationException ex)
 }
 
 app.MapHealth();
+app.MapAssistant();
 app.Run();
 return 0;
 

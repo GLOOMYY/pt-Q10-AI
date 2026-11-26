@@ -1,6 +1,8 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TutorFlow.Application.Ports.Clock;
+using TutorFlow.Infrastructure.Clock;
 
 namespace TutorFlow.Infrastructure;
 
@@ -49,6 +51,8 @@ public static class DependencyInjection
 
         services.AddOptions<MockApiOptions>()
             .Configure(o => o.BaseUrl = Read(configuration, "MOCK_API_URL", o.BaseUrl));
+
+        services.AddSingleton<IClock, SystemClock>();
 
         return services;
     }
