@@ -125,7 +125,7 @@ public sealed partial class AssistantService : IAssistantService
         var instructions = SystemInstructions.Build(user);
         var tools = AssistantToolbox.DefinitionsFor(user);
         var messages = new List<LlmMessage> { LlmMessage.User(question) };
-        var state = new ToolRunState();
+        var state = new ToolRunState(question);
         var tokens = 0;
         var cost = 0m;
 
@@ -133,7 +133,10 @@ public sealed partial class AssistantService : IAssistantService
         {
             for (var call = 0; call < _options.MaxLlmCalls; call++)
             {
-                var request = new LlmRequest(instructions, [.. messages], tools, Temperature, ModelAnswer.Schema);
+                // DUDA-29: with a small limit, the last allowed call asks for the final answer instead of more tools.
+                var isLastCall = call == _options.MaxLlmCalls - 1;
+                var callInstructions = isLastCall && call > 0 ? instructions + SystemInstructions.LastCall : instructions;
+                var request = new LlmRequest(callInstructions, [.. messages], tools, Temperature, ModelAnswer.Schema);
                 var response = await _llm.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
 
                 // R-RES-05: every call made for this question counts, whatever the final outcome.
@@ -145,7 +148,7 @@ public sealed partial class AssistantService : IAssistantService
                     return Finish(response.Text, state, tokens, cost);
                 }
 
-                var outcome = await RunToolsAsync(user, response, messages, state, tokens, cost, cancellationToken)
+                var outcome = await RunToolsAsync(user, response, messages, state, !isLastCall, tokens, cost, cancellationToken)
                     .ConfigureAwait(false);
                 if (outcome is not null)
                 {
@@ -169,15 +172,24 @@ public sealed partial class AssistantService : IAssistantService
     /// request for non-authorized data, both 403; <c>responder_sin_informacion</c>, 200), or <see langword="null"/> to
     /// continue the loop.
     /// </summary>
+    /// <remarks>
+    /// ESC-RAR-19, R-RES-04: when <c>responder_sin_informacion</c> ("fuera de los documentos") comes after the model
+    /// already read academic data in a previous turn, the model is asked once to answer with those data (e.g. "no tienes
+    /// esa asignatura") instead of the generic "no information" answer, provided another call is still allowed
+    /// (<paramref name="canContinue"/>). The other cases (incomplete or unreadable question) always end the request.
+    /// </remarks>
     private async Task<AssistantAnswer?> RunToolsAsync(
         SessionUser user,
         LlmResponse response,
         List<LlmMessage> messages,
         ToolRunState state,
+        bool canContinue,
         int tokens,
         decimal cost,
         CancellationToken cancellationToken)
     {
+        var usedDataBefore = state.UsedStudentData;
+
         // R-ARQ-04, D-32: a turn that calls `rechazar` ends the request; no other call of that turn is run.
         var reject = response.ToolCalls.FirstOrDefault(c => c.Name == AssistantTools.Reject);
         if (reject is not null)
@@ -203,6 +215,20 @@ public sealed partial class AssistantService : IAssistantService
             }
 
             results.Add(new LlmToolResult(toolCall.Name, execution.Result, toolCall.Id));
+        }
+
+        if (noInformation is not null
+            && usedDataBefore
+            && canContinue
+            && !state.NoInformationReconsidered
+            && AssistantToolbox.NoInformationAnswer(noInformation) == CitationValidator.NoInformationText)
+        {
+            // The data the turn produced are answered too, so the model sees them before it decides again.
+            _audit.RecordTool(noInformation.Name);
+            state.NoInformationReconsidered = true;
+            results.Add(new LlmToolResult(noInformation.Name, AssistantToolbox.ReconsiderNoInformation(), noInformation.Id));
+            messages.Add(LlmMessage.Tool(results));
+            return null;
         }
 
         if (noInformation is not null)

@@ -34,6 +34,7 @@ public sealed partial class CitationValidator
     public const string NoInformationText = "No encuentro esa información en los documentos disponibles.";
 
     private const string EvaluationDocument = "evaluacion_y_calificaciones.md";
+    private const string RegulationDocument = "reglamento_academico_2025.md";
 
     private readonly IKnowledgeBase _knowledge;
 
@@ -84,9 +85,38 @@ public sealed partial class CitationValidator
             valid.AddRange(allowedData);
         }
 
-        AddBackedRules(TextNormalizer.Normalize(proposed.Text), valid, state);
-        AddCutWeights(proposed.Text, valid);
-        return new ValidatedAnswer(proposed.Text, valid);
+        var text = WithoutOffTopicAbsences(proposed.Text, valid, state);
+        AddBackedRules(TextNormalizer.Normalize(text), valid, state);
+        AddCutWeights(text, valid);
+        return new ValidatedAnswer(text, valid);
+    }
+
+    /// <summary>
+    /// R-RES-01, ESC-BAN-04 (DUDA-44): a general question about how the definitive grade is computed (the answer cites
+    /// Evaluación "Sección 3", no student data were read and the question does not mention attendance) does not ask
+    /// about the loss by absences. If the model added it anyway, its "Artículo 11" citation and the sentences about it are
+    /// removed, so the answer covers only what was asked. Nothing is removed when that would leave the answer empty.
+    /// </summary>
+    private static string WithoutOffTopicAbsences(string text, List<Citation> valid, ToolRunState state)
+    {
+        var absences = new Citation(RegulationDocument, "Artículo 11");
+        if (state.UsedStudentData
+            || !valid.Contains(absences)
+            || !valid.Contains(new Citation(EvaluationDocument, "Sección 3"))
+            || AttendancePattern().IsMatch(TextNormalizer.Normalize(state.Question)))
+        {
+            return text;
+        }
+
+        var sentences = SentencePattern().Split(text.Trim());
+        var kept = sentences.Where(s => !AttendancePattern().IsMatch(TextNormalizer.Normalize(s))).ToList();
+        if (kept.Count == 0)
+        {
+            return text;
+        }
+
+        valid.Remove(absences);
+        return string.Join(' ', kept);
     }
 
     /// <summary>
@@ -197,4 +227,12 @@ public sealed partial class CitationValidator
 
     [GeneratedRegex(@"(?<![0-9.,])40\s*(%|por\s*ciento)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, 1000)]
     private static partial Regex Weight40Pattern();
+
+    // Normalized words about attendance: inasistencia(s), asistencia, falta(s), faltar, falla(s), ausencia(s).
+    [GeneratedRegex(@"\b(inasistencia|asistencia|falt|falla|ausencia)", RegexOptions.CultureInvariant, 1000)]
+    private static partial Regex AttendancePattern();
+
+    // End of a sentence: a period, exclamation or question mark followed by spaces (never the point of "4.45").
+    [GeneratedRegex(@"(?<=[.!?])\s+", RegexOptions.CultureInvariant, 1000)]
+    private static partial Regex SentencePattern();
 }

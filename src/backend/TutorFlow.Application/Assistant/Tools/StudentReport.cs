@@ -141,6 +141,8 @@ public static class StudentReport
         var lost = new JsonArray();
         var lostByAbsences = new JsonArray();
         var absencesUndetermined = new JsonArray();
+        var absencesSummary = new List<string>();
+        var undeterminedSummary = new List<string>();
 
         foreach (var (student, evaluation, attendance) in students)
         {
@@ -180,6 +182,8 @@ public static class StudentReport
                     ["inasistencias"] = AbsenceSummary(RowOf(attendance, c.Code)),
                 })]);
                 lostByAbsences.Add(line);
+                absencesSummary.Add($"{student.Name} ({student.Id}): "
+                    + string.Join("; ", byAbsences.Select(c => $"{c.Name}, {AbsenceSummary(RowOf(attendance, c.Code))}")));
             }
 
             var unknown = evaluation.Courses.Where(c => c.IsConsistent && c.Absences == AbsenceStatus.Unknown).ToList();
@@ -188,6 +192,7 @@ public static class StudentReport
                 var line = StudentLine(student, null, null);
                 line["asignaturasSinDatoDeInasistencias"] = Names(unknown);
                 absencesUndetermined.Add(line);
+                undeterminedSummary.Add($"{student.Name} ({student.Id}): {string.Join(", ", unknown.Select(c => c.Name))}");
             }
         }
 
@@ -217,9 +222,25 @@ public static class StudentReport
             {
                 ["perdieronPorInasistencia"] = lostByAbsences,
                 ["noDeterminableSinDatoDeInasistencias"] = absencesUndetermined,
+                // ESC-COO-06, R-ASI-03: one sentence that names every student of both lists, so none is left out.
+                ["resumen"] = AbsencesSummary(absencesSummary, undeterminedSummary),
                 ["reglaACitar"] = RuleCitation(Regulation, "Artículo 11"),
             },
         };
+    }
+
+    private static string AbsencesSummary(List<string> lost, List<string> undetermined)
+    {
+        var text = lost.Count > 0
+            ? "Perdieron alguna asignatura por inasistencia (más del 15 % de las clases programadas): " + string.Join(" | ", lost) + "."
+            : "Ningún estudiante perdió asignaturas por inasistencia con los datos registrados.";
+        if (undetermined.Count > 0)
+        {
+            text += " No es determinable si perdieron por inasistencia, porque no hay dato de inasistencias (sin darlas por perdidas ni por aprobadas): "
+                + string.Join(" | ", undetermined) + ".";
+        }
+
+        return text;
     }
 
     /// <summary>Finds a course of the evaluation by code or by name (accent and case insensitive).</summary>
