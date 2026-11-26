@@ -16,3 +16,15 @@
 13. FABRICA
 14. INTERVENCIONES
 15. REPORTE
+
+# Intervenciones durante la prueba
+
+16. Se intervino para actualizar las api key agotada
+17. Se intervino para responder a las dudas del agente recopiladas durante 4 horas de trabajo
+18. Actualizacion de las .env con los nuevos datos incluidos durante el trabajo de la fabrica
+19. Se intervino para actualizar las api key agotada
+20. Se intervino para solicitar a la fabrica permitir mis commits con el trailer "Generado-por: Humano" pues el requisito original solo permitia commits con el trailer "Generado-por: Claude Code"
+21. Se intervio para solicitar a la fabrica resolver conflictos del repo por mis cambios en los .env.example y sus cambios alli.
+22. Se intervino para solicitar a la fabrica el estado de los agentes para terminar el proceso y preparar la entrega.
+23. Se intervino para detener la fabrica y cerrar el proceso para la entrega.
+24. Se utilizó al orquestador de la fabrica como apoyo para el reporte final en REPORTE.md
