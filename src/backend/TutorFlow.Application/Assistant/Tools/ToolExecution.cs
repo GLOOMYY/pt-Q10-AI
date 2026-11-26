@@ -74,9 +74,10 @@ public sealed class ToolRunState
     public string Question { get; }
 
     /// <summary>
-    /// Whether the model was already asked once to reconsider a "no information" exit after reading data (ESC-RAR-19).
+    /// Whether the model, after calling the non-offered <c>responder_sin_informacion</c> on a call after the first one,
+    /// was already asked once to write the answer with the results it has.
     /// </summary>
-    public bool NoInformationReconsidered { get; set; }
+    public bool AnswerRequested { get; set; }
 
     /// <summary>Whether academic data of a student was consulted to answer (R-RES-04).</summary>
     public bool UsedStudentData { get; private set; }

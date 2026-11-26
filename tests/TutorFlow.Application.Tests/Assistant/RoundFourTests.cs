@@ -153,10 +153,10 @@ public class RoundFourTests
         Assert.True(h.ToolResult().TryGetProperty("error", out _));
     }
 
-    // ESC-RAR-19: "fuera de los documentos" after reading the user's data is reconsidered once, and the answer uses
-    // the data (usoDatosEstudiante true).
+    // ESC-RAR-19 (adapted in the seventh round): "fuera de los documentos" is not offered after reading the user's
+    // data; called anyway, it is not run nor logged, and the model answers with the data (usoDatosEstudiante true).
     [Fact]
-    public async Task No_information_after_reading_data_is_reconsidered_once()
+    public async Task No_information_after_reading_data_asks_for_the_answer()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
@@ -171,14 +171,13 @@ public class RoundFourTests
         Assert.True(answer.UsedStudentData);
         Assert.Contains("EST-103", answer.Text, StringComparison.Ordinal);
         Assert.Equal(3, h.Llm.CallCount);
-        Assert.Equal(
-            [AssistantTools.AcademicStatus, AssistantTools.NoInformation],
-            h.Log.Tools);
+        Assert.Equal([AssistantTools.AcademicStatus], h.Log.Tools);
     }
 
-    // The second "no information" is accepted: the model decides, the backend only asks once.
+    // Seventh round: the backend asks only once; a second non-offered "no information" call ends with a 503, never
+    // with an answer the model did not write.
     [Fact]
-    public async Task Second_no_information_is_accepted()
+    public async Task Second_non_offered_no_information_is_503()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
@@ -187,14 +186,13 @@ public class RoundFourTests
 
         var answer = await h.AskStudentAsync("¿Cuánto cuesta el carné?");
 
-        Assert.Equal(CitationValidator.NoInformationText, answer.Text);
-        Assert.False(answer.UsedStudentData);
-        Assert.Empty(answer.Citations);
+        Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
+        Assert.Equal(3, h.Llm.CallCount);
     }
 
-    // On the last allowed call there is no room to reconsider: the "no information" answer stands (never a 503).
+    // Seventh round: on the last allowed call (after the first) "no information" is not offered and not run: 503.
     [Fact]
-    public async Task No_information_on_the_last_call_is_accepted()
+    public async Task No_information_on_the_last_call_is_503()
     {
         var h = new AssistantHarness();
         h.Options.MaxLlmCalls = 2;
@@ -203,8 +201,8 @@ public class RoundFourTests
 
         var answer = await h.AskStudentAsync("¿Cuánto cuesta el carné?");
 
-        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
-        Assert.Equal(CitationValidator.NoInformationText, answer.Text);
+        Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
+        Assert.Equal([AssistantTools.AcademicStatus], h.Log.Tools);
     }
 
     // ESC-COO-06, R-ASI-03: the summary of absences names the lost ones and the undetermined ones (null attendance).

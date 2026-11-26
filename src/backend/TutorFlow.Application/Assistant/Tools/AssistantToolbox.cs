@@ -62,17 +62,26 @@ public sealed class AssistantToolbox
     }
 
     /// <summary>
-    /// Tools offered on the last allowed model call (DUDA-29): only the exits <see cref="AssistantTools.Reject"/> and
-    /// <see cref="AssistantTools.NoInformation"/>. No later call could use the result of a data tool or of
-    /// <c>buscar_reglamento</c>, so they are not offered and the model must answer with what it already has. The exits
-    /// stay because they read no data: <c>rechazar</c> keeps the 403 available until the end (R-ARQ-04, security is
-    /// never weaker on the last call), and <c>responder_sin_informacion</c> lets the model say it has no answer instead
-    /// of inventing one (R-RES-03).
+    /// Tools offered on every call after the first one that is not the last: every tool of the role except
+    /// <see cref="AssistantTools.NoInformation"/>. That exit is meant for questions that need no tool (outside the
+    /// documents, incomplete or unreadable); once the model has tool results it must write the answer itself, and
+    /// "No encuentro esa información en los documentos disponibles." with no citations when there is none (R-RES-03).
+    /// </summary>
+    /// <param name="user">The session user.</param>
+    /// <returns>The definitions of the role without the non-rejecting exit.</returns>
+    public static IReadOnlyList<LlmToolDefinition> LaterDefinitionsFor(SessionUser user) =>
+        [.. DefinitionsFor(user).Where(t => t.Name != AssistantTools.NoInformation)];
+
+    /// <summary>
+    /// Tools offered on the last allowed model call (DUDA-29): only <see cref="AssistantTools.Reject"/>. No later call
+    /// could use the result of a data tool or of <c>buscar_reglamento</c>, so they are not offered and the model must
+    /// answer with what it already has. <c>rechazar</c> stays because it reads no data and keeps the 403 available until
+    /// the end (R-ARQ-04: security is never weaker on the last call).
     /// </summary>
     /// <param name="user">The session user.</param>
     /// <returns>The exit definitions of the user's role.</returns>
     public static IReadOnlyList<LlmToolDefinition> ExitDefinitionsFor(SessionUser user) =>
-        [.. DefinitionsFor(user).Where(t => t.Name is AssistantTools.Reject or AssistantTools.NoInformation)];
+        [.. DefinitionsFor(user).Where(t => t.Name == AssistantTools.Reject)];
 
     /// <summary>
     /// The fixed 200 answer of a <see cref="AssistantTools.NoInformation"/> call (R-RES-03, R-RES-07). It never reads
@@ -87,14 +96,15 @@ public sealed class AssistantToolbox
     }
 
     /// <summary>
-    /// Result given to a "fuera de los documentos" exit chosen after the data were read (ESC-RAR-19): the model is asked
-    /// to answer with those data. It carries no data.
+    /// Result given to a <see cref="AssistantTools.NoInformation"/> call made after the first call, where that exit is
+    /// not offered: it is not run, and the model is asked to write the answer with the results it already has
+    /// (R-RES-03, ESC-COO-08, ESC-INY-16). It carries no data.
     /// </summary>
     /// <returns>The JSON result for the model.</returns>
-    public static JsonElement ReconsiderNoInformation() => JsonSerializer.SerializeToElement(
+    public static JsonElement WriteTheAnswer() => JsonSerializer.SerializeToElement(
         new JsonObject
         {
-            ["instruccion"] = "Ya consultaste los datos académicos: responde con ellos. Si lo que se pregunta no está en esos datos (por ejemplo, una asignatura o un código que no aparece entre sus asignaturas), dilo así en la respuesta, nombrando lo que se preguntó, y cita los datos consultados. Usa responder_sin_informacion solo si de verdad la pregunta no se puede responder.",
+            ["error"] = "responder_sin_informacion ya no está disponible: ya tienes resultados de herramientas. Redacta ahora la respuesta final en JSON con esos resultados y sus citas. Si lo que se pregunta no está en esos datos (por ejemplo, una asignatura que no aparece entre sus asignaturas), dilo en la respuesta, nombrando lo que se preguntó, y cita los datos consultados. Solo si de verdad ni los fragmentos ni los datos responden la pregunta, responde exactamente \"No encuentro esa información en los documentos disponibles.\" con las citas vacías.",
         },
         JsonOptions);
 

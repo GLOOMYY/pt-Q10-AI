@@ -16,10 +16,10 @@ public class RoundSixTests
     private const string Evaluation = "evaluacion_y_calificaciones.md";
     private const string Regulation = "reglamento_academico_2025.md";
 
-    private static readonly string[] Exits = [AssistantTools.Reject, AssistantTools.NoInformation];
+    private static readonly string[] Exits = [AssistantTools.Reject];
 
     // DUDA-29, ESC-COO-08, ESC-COO-09: three rounds of tools, then the fourth (last) call answers: 200, and that call
-    // offers only the exits, never a data tool nor buscar_reglamento.
+    // offers only `rechazar`, never a data tool, buscar_reglamento nor responder_sin_informacion (seventh round).
     [Fact]
     public async Task Three_tool_rounds_end_with_the_answer_of_the_fourth_call()
     {
@@ -42,7 +42,7 @@ public class RoundSixTests
         Assert.All(h.Llm.Requests.Take(3), r => Assert.Contains(r.Tools, t => t.Name == AssistantTools.AcademicStatus));
     }
 
-    // The student's last call offers the same two exits, with their original definitions.
+    // The student's last call offers only `rechazar`, with its original definition (seventh round).
     [Fact]
     public async Task Last_call_of_a_student_offers_only_the_exits()
     {
@@ -56,15 +56,15 @@ public class RoundSixTests
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         var lastTools = h.Llm.Requests[3].Tools;
-        Assert.Equal(2, lastTools.Count);
+        Assert.Single(lastTools);
         Assert.All(lastTools, t => Assert.Contains(t, AssistantTools.StudentDefinitions));
         Assert.DoesNotContain(lastTools, t => t.Name == AssistantTools.SearchRegulations);
     }
 
-    // ESC-INY-14, ESC-RAR-19: search → data → "fuera de los documentos" (reconsidered once) → the last call, without
-    // data tools, answers with the data already read: 200, never a 503.
+    // ESC-INY-14 (seventh round): search → data → a non-offered "no information" call is not run; the model is asked
+    // to write the answer, and the last call, with only `rechazar`, answers with the data already read: 200.
     [Fact]
-    public async Task Reconsidered_no_information_before_the_last_call_ends_with_an_answer()
+    public async Task Non_offered_no_information_before_the_last_call_ends_with_an_answer()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SearchRegulations, new { consulta = "reglamento 2023" }))
@@ -83,9 +83,10 @@ public class RoundSixTests
         Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
     }
 
-    // The exits still work on the last call: `responder_sin_informacion` gives its fixed 200 answer.
+    // Seventh round: `responder_sin_informacion` is not offered on the last call; called anyway, it is not run: 503
+    // (the model had to write the answer).
     [Fact]
-    public async Task No_information_on_the_last_call_without_data_tools_is_200()
+    public async Task No_information_on_the_last_call_is_not_run()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SearchRegulations, new { consulta = "carné" }))
@@ -95,10 +96,10 @@ public class RoundSixTests
 
         var answer = await h.AskStudentAsync("¿Cuánto cuesta el carné?");
 
-        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
-        Assert.Empty(answer.Citations);
+        Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
         Assert.Equal(4, h.Llm.CallCount);
         Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.DoesNotContain(AssistantTools.NoInformation, h.Log.Tools);
     }
 
     // A single allowed call has no results to answer with: it keeps every tool.
