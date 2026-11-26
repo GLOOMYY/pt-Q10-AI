@@ -11,7 +11,7 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
 | F3 · Integración | Cerrada | #17 | 2026-11-26 |
 | F4 · Frontend | Cerrada | #19, #20, #21 | 2026-11-26 |
-| F5 · Pruebas finales | En curso (detenida por el entorno, DUDA-43) | #23–#29 | — |
+| F5 · Pruebas finales | En curso (bloqueada: DUDA-43 y DUDA-45) | #23–#29 | — |
 
 PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2), #18 (cierre de F3), #22 (cierre de F4) y el del estado de F5.
 
@@ -85,4 +85,4 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 
 **Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) búsqueda previa antes de responder "sin información" (ESC-BAN-07) y motivo de "no habilitable" tomado de Domain (DUDA-42, ESC-EST-03/04). Pendiente de verificar con el LLM real.
 
-**Pendiente:** una pasada completa y limpia de `evals/` (DUDA-43, bloqueante, del responsable).
+**Pendiente:** una pasada completa y limpia de `evals/` que verifique los PR #26 a #29 con el LLM real. Bloqueada por la memoria del equipo (DUDA-43) y por la cuota diaria de Gemini agotada (DUDA-45: 429 persistente al reanudar). Ambas dependen del responsable.
