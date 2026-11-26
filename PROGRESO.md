@@ -11,7 +11,7 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
 | F3 · Integración | Cerrada | #17 | 2026-11-26 |
 | F4 · Frontend | Cerrada | #19, #20, #21 | 2026-11-26 |
-| F5 · Pruebas finales | En curso (bloqueada: DUDA-43 y DUDA-45) | #23–#29 | — |
+| F5 · Pruebas finales | En curso | #23–#29 | — |
 
 PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2), #18 (cierre de F3), #22 (cierre de F4) y el del estado de F5.
 
@@ -82,7 +82,8 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 | 1 | F0–F4 | 31 de 77 con respuesta | 10 | mayoría | 4 tandas no arrancaron por 503 del proveedor; una ejecución previa se cortó por memoria (DUDA-38). |
 | 2 | + PR #25 (reintentos) y #26 (instrucciones) | 83 de 145 (1 no ejecutado: cuota) | 17 | 44 | Costo aproximado de la pasada: 0,07 USD. |
 | 3 (parcial) | + PR #27 (salida "sin información", cifras y citas) | 41 de 66 (banco, estudiante, coordinador) | 3 | 22 | `estudiante.md`: los 9 fallos son 503 del proveedor. Cortada por memoria del equipo (DUDA-43). |
+| 4 | + PR #29, clave nueva del responsable | **130 de 145** (1 no ejecutado: cuota) | 7 | 7 (timeouts de 30 s) | Con pausa de 12 s entre preguntas para respetar el límite por minuto de la clave; los 503 por ese límite se reejecutaron. Costo aproximado: 0,06 USD. |
 
 **Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) búsqueda previa antes de responder "sin información" (ESC-BAN-07) y motivo de "no habilitable" tomado de Domain (DUDA-42, ESC-EST-03/04). Pendiente de verificar con el LLM real.
 
-**Pendiente:** una pasada completa y limpia de `evals/` que verifique los PR #26 a #29 con el LLM real. Bloqueada por la memoria del equipo (DUDA-43) y por la cuota diaria de Gemini agotada (DUDA-45: 429 persistente al reanudar). Ambas dependen del responsable.
+**Pendiente:** el responsable liberó memoria y actualizó la clave (DUDA-43 y DUDA-45 resueltas); la cuarta pasada dio 130 de 145. Cuarta ronda de correcciones en curso (ESC-COO-13 nombre de pila → pedir ID, ESC-COO-06, ESC-CIT-06, ESC-CIT-10, ESC-RAR-19, ESC-BAN-04) límite de 4 llamadas al LLM por pregunta (DUDA-29) y partículas y palabras cortas ignoradas en la barrera determinista (DUDA-26, seguridad), seguida de una verificación final.
