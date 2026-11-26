@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using TutorFlow.Application.Ports.AcademicApi;
 using TutorFlow.Domain.Attendance;
 using TutorFlow.Domain.Evaluation;
+using TutorFlow.Domain.Grading;
 using TutorFlow.Domain.Rules;
 
 namespace TutorFlow.Application.Assistant.Tools;
@@ -98,11 +99,11 @@ public static class StudentReport
             {
                 ["resultado"] = evaluation.Probation switch
                 {
-                    ProbationStatus.InProbation => "sí: promedio del periodo menor que 3.0",
+                    ProbationStatus.InProbation => $"sí: promedio del periodo menor que {NumberFormat.Grade(StudentEvaluator.ProbationThreshold)}",
                     ProbationStatus.NotInProbation => "no",
                     _ => "no determinable",
                 },
-                ["detalle"] = $"promedio ponderado del periodo: {AverageText(evaluation)}; queda en prueba académica con un promedio menor que 3.0",
+                ["detalle"] = $"promedio ponderado del periodo: {AverageText(evaluation)}; queda en prueba académica con un promedio menor que {NumberFormat.Grade(StudentEvaluator.ProbationThreshold)}",
                 ["provisional"] = provisional && evaluation.Probation != ProbationStatus.Undetermined,
                 ["reglaACitar"] = RuleCitation(Regulation, "Artículo 20"),
             },
@@ -267,7 +268,7 @@ public static class StudentReport
             ["definitiva"] = c.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData,
             ["motivo"] = c.Outcome == CourseOutcome.LostByAbsences
                 ? "perdida por inasistencia (definitiva 0.0)"
-                : "definitiva menor que 3.0",
+                : $"definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)}",
         }),
     ];
 
@@ -292,11 +293,13 @@ public static class StudentReport
                 {
                     ["asignatura"] = course.Name,
                     ["definitiva"] = grade,
+                    // Domain gives the status, not the reason: only the loss by absences (a domain outcome) is
+                    // named; any other case is worded neutrally so that it is never false (R-HAB-01, R-HAB-02).
                     ["motivo"] = course.Habilitation == HabilitationStatus.Undetermined
                         ? "no determinable"
                         : course.Outcome == CourseOutcome.LostByAbsences
                             ? "perdida por inasistencia: no es habilitable (Artículo 7)"
-                            : "definitiva menor que 2.0: no es habilitable (Artículo 6)",
+                            : "no cumple las condiciones de habilitación de los Artículos 6 y 7",
                 });
             }
         }
@@ -320,9 +323,9 @@ public static class StudentReport
         : "sin promedio en el periodo";
 
     private static string ScholarshipDetail(StudentEvaluation evaluation) =>
-        $"promedio ponderado del periodo: {AverageText(evaluation)} (se requiere 4.3 o más); "
+        $"promedio ponderado del periodo: {AverageText(evaluation)} (se requiere {NumberFormat.Grade(StudentEvaluator.ScholarshipMinimumAverage)} o más); "
         + $"asignaturas perdidas: {evaluation.LostCourses.Count()} (se requiere ninguna); "
-        + $"créditos matriculados: {evaluation.EnrolledCredits.ToString(CultureInfo.InvariantCulture)} (se requieren al menos 12); "
+        + $"créditos matriculados: {evaluation.EnrolledCredits.ToString(CultureInfo.InvariantCulture)} (se requieren al menos {StudentEvaluator.ScholarshipMinimumCredits.ToString(CultureInfo.InvariantCulture)}); "
         + $"asignaturas sin definitiva: {evaluation.Courses.Count(c => c.Outcome == CourseOutcome.NoFinalGrade)}";
 
     private static JsonObject StudentLine(StudentRecord student, string? field, string? value)
@@ -383,7 +386,7 @@ public static class StudentReport
         {
             CourseOutcome.Passed => "aprobada",
             CourseOutcome.PassUndetermined => "aprobada por nota, pero la pérdida por inasistencia no es determinable (sin dato de inasistencias)",
-            CourseOutcome.Failed => "perdida (definitiva menor que 3.0)",
+            CourseOutcome.Failed => $"perdida (definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)})",
             CourseOutcome.LostByAbsences => "perdida por inasistencia (definitiva 0.0, sin importar las notas de los cortes)",
             CourseOutcome.NoFinalGrade => "sin definitiva: no cuenta como aprobada ni como perdida y no entra en el promedio",
             _ => "dato inconsistente",

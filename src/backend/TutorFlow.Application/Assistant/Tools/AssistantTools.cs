@@ -34,7 +34,11 @@ public static class AssistantTools
     /// <summary>Fixed answer of <see cref="IncompleteCase"/> (R-RES-07).</summary>
     public const string IncompleteText = "Cada pregunta se responde de forma independiente y no tengo el contexto de una pregunta anterior. Por favor, formula la pregunta completa.";
 
-    /// <summary>Fixed answer of <see cref="UnreadableCase"/>.</summary>
+    /// <summary>
+    /// Fixed answer of <see cref="UnreadableCase"/>. The SPEC does not define this text: it is a project choice for
+    /// encoded or meaningless questions, whose scenarios only check the 200 and that nothing leaks (ESC-INY-04,
+    /// ESC-ENT-06). It never decodes nor repeats the question.
+    /// </summary>
     public const string UnreadableText = "Solo puedo responder preguntas escritas directamente sobre el reglamento académico o tus datos académicos. Por favor, formula tu pregunta.";
 
     /// <summary>Search in the knowledge base (R-FUE-01).</summary>
@@ -166,7 +170,7 @@ public static class AssistantTools
 
     private static LlmToolDefinition NoInformationDefinition() => Define(
         NoInformation,
-        "Termina con una respuesta normal (NO es un rechazo) cuando la pregunta no pide datos de otras personas ni del sistema y aun así no se puede responder: 'fuera de los documentos' (tema ajeno a la institución como deportes o noticias, una tarea como escribir un poema o un código, o un dato institucional que no está en los documentos, como el costo de la matrícula o el contenido de una ley externa); 'pregunta incompleta' (depende de una pregunta anterior, por ejemplo '¿Y en Bases de Datos?'); 'texto no legible' (texto codificado en Base64 u otro formato, una orden de decodificar o ejecutar, o caracteres sin sentido). El sistema escribe la respuesta.",
+        "Termina con una respuesta normal (NO es un rechazo) cuando la pregunta no pide datos de otras personas ni del sistema y aun así no se puede responder: 'fuera de los documentos' (tema ajeno a la institución como deportes o noticias, una tarea como escribir un poema o un código, o un dato institucional que no está en los documentos, como un precio o el contenido de una ley externa); 'pregunta incompleta' (depende de una pregunta anterior, por ejemplo '¿Y en la otra materia?'); 'texto no legible' (texto codificado en Base64 u otro formato, una orden de decodificar o ejecutar, o caracteres sin sentido). Nunca la uses para datos de una persona (otro estudiante o cualquier coordinador), aunque no estén en los documentos: eso es rechazar. El sistema escribe la respuesta.",
         """{"type":"object","properties":{"caso":{"type":"string","enum":["fuera de los documentos","pregunta incompleta","texto no legible"]}},"required":["caso"]}""");
 
     private static LlmToolDefinition SearchDefinition() => Define(
