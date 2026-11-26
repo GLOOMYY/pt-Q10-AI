@@ -10,10 +10,10 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F1b · Núcleo | Cerrada | #5, #6, #7, #8, #9, #10 | 2026-11-26 |
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
 | F3 · Integración | Cerrada | #17 | 2026-11-26 |
-| F4 · Frontend | En curso | — | — |
-| F5 · Pruebas finales | Pendiente | — | — |
+| F4 · Frontend | Cerrada | #19, #20, #21 | 2026-11-26 |
+| F5 · Pruebas finales | En curso | — | — |
 
-PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2) y el de cierre de F3.
+PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2), #18 (cierre de F3) y el de cierre de F4.
 
 ## F0 · Esqueleto, CI y contenedores (cerrada el 2026-11-26)
 
@@ -54,8 +54,19 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 
 - **integracion (PR #17):** biblioteca `evals/TutorFlow.Scenarios` que lee `escenarios/` con la gramática del README (§6), resuelve los marcadores `<generar: …>` (§3.3) y aplica las reglas de comparación (§4.1), la comprobación global de citas (§4.3) y la tabla `tests/` frente a `evals/` (§4.4).
   - `tests/TutorFlow.Integration.Tests`: los **145 escenarios `api`** se ejecutan uno a uno contra el backend real en proceso con la API simulada en memoria, el LLM falso guionizado por escenario y el log en memoria. **145 de 145 aprobados, 0 excluidos.** Un escenario sin guion o sin comprobaciones falla de forma visible; los 403 resueltos antes del modelo fallan si se llama al LLM. Pruebas de punta a punta de auditoría (AC-03): `X-Correlation-Id`, un registro por petición con el status real y sin datos sensibles.
-  - `evals/TutorFlow.Evals`: ejecutor de consola contra `docker compose` y el LLM real para F5 (fuera de la CI). Envía su propio `X-Correlation-Id`, lee el registro en `var/auditoria/auditoria.jsonl`, detiene y relevanta `mock-api` para `api-simulada-detenida`, nunca ejecuta `llm-cuota-agotada` y escribe el informe en `var/evals/`. No necesita la clave: comprueba antes con una pregunta real que el backend tiene un LLM operativo.
+  - `evals/TutorFlow.Evals`: ejecutor de consola contra `docker compose` y el LLM real para F5 (fuera de la CI). Envía su propio `X-Correlation-Id`, lee el registro en `var/auditoria/auditoria.jsonl`, detiene y vuelve a levantar `mock-api` para `api-simulada-detenida`, nunca ejecuta `llm-cuota-agotada` y escribe el informe en `var/evals/`. No necesita la clave: comprueba antes con una pregunta real que el backend tiene un LLM operativo.
   - Revisor: con bloqueantes (el ejecutor exigía la clave en su entorno) → corregido → sin bloqueantes.
 - **Verificación del orquestador:** `docker compose up` sobre `main` con una clave ficticia levanta `mock-api`, `audit-init` y `backend` sanos; `/api/salud` = 200 con `X-Correlation-Id`; un ID inexistente da el 403 exacto de §5.0 y deja un registro de auditoría con los campos de R-LOG-08.
 
 **Dudas registradas:** DUDA-33 a DUDA-35. Pendiente del responsable: DUDA-33. Ninguna bloquea.
+
+## F4 · Frontend (cerrada el 2026-11-26)
+
+**Entregado**
+
+- **frontend (PR #21):** React 19 + TypeScript estricto con Vite (salida en `src/frontend/dist/`). Selector con los 8 usuarios de prueba (R-FRO-01), pregunta limitada a 1 000 caracteres y sin envío vacío (R-FRO-02), chat solo visual sin historial (R-FRO-03), citas sin inventar (R-FRO-04), tokens y costo con 6 decimales (R-FRO-05), errores 400/403/503 con el texto del backend y diferenciados (R-FRO-06), y limpieza del chat al cambiar de usuario descartando respuestas tardías (R-FRO-07). Solo llama a `/api/*` del mismo origen. 12 pruebas con Vitest.
+- **plataforma (PR #19):** el backend sirve `wwwroot` en el mismo puerto con fallback a `index.html` solo fuera de `/api` y para rutas que no son archivos (D-14, R-DEP-01). Revisor: con bloqueantes (el fallback capturaba los JS/CSS) → corregido con `:nonfile` → sin bloqueantes.
+- **devops (PR #20):** la imagen compila el frontend y lo copia a `wwwroot`; la CI tiene un job de frontend (`npm ci`, `npm test`, `npm run build`) y el smoke comprueba `GET /` con HTML; `.env.example` documenta `AUDIT_LOG_PATH` y `Assistant__MaxLlmCalls`; AGENTS §11 con los comandos de frontend y de `evals/`.
+- **Verificación del orquestador:** `docker compose up` sobre `main` levanta los servicios sanos; `/` sirve el frontend y `/api/salud` = 200.
+
+**Dudas registradas:** DUDA-36 (resuelta).
