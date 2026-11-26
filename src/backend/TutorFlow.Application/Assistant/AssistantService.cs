@@ -125,7 +125,6 @@ public sealed partial class AssistantService : IAssistantService
         var instructions = SystemInstructions.Build(user);
         var tools = AssistantToolbox.DefinitionsFor(user);
         var laterTools = AssistantToolbox.LaterDefinitionsFor(user);
-        var exitTools = AssistantToolbox.ExitDefinitionsFor(user);
         var messages = new List<LlmMessage> { LlmMessage.User(question) };
         var state = new ToolRunState(question);
         var tokens = 0;
@@ -138,9 +137,11 @@ public sealed partial class AssistantService : IAssistantService
                 // R-RES-03, R-RES-07: `responder_sin_informacion` is only offered on the first call, before any tool
                 // result: it is meant for questions that need no tool. From the second call on, the model writes the
                 // answer itself with the results it has ("No encuentro esa información..." when there is none).
-                // DUDA-29: with a small limit, the last allowed call asks for the final answer instead of more tools,
-                // and offers only `rechazar` (it reads no data, R-ARQ-04), so the model has to answer with the results
-                // it already has; that answer goes through the normal citation validation.
+                // DUDA-29, ESC-COO-08: with a small limit, the last allowed call asks for the final answer and declares
+                // no tool at all, not even `rechazar`: the model has to answer with the results it already has, and that
+                // answer goes through the normal citation validation. R-ARQ-04, D-32: the rejection is decided before
+                // using data tools, and `rechazar` is offered on every earlier call (the first one included); the
+                // deterministic authorization of the data tools is unchanged.
                 // A single allowed call keeps every tool: there are no results yet to answer with.
                 var isFirstCall = call == 0;
                 var isLastCall = call == _options.MaxLlmCalls - 1;
@@ -149,7 +150,7 @@ public sealed partial class AssistantService : IAssistantService
                     isFirstCall ? instructions
                         : instructions + (finalCall ? SystemInstructions.LastCall : SystemInstructions.LaterCall),
                     [.. messages],
-                    isFirstCall ? tools : finalCall ? exitTools : laterTools,
+                    isFirstCall ? tools : finalCall ? [] : laterTools,
                     Temperature,
                     ModelAnswer.Schema);
                 var response = await _llm.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
@@ -163,13 +164,15 @@ public sealed partial class AssistantService : IAssistantService
                     return Finish(response.Text, state, tokens, cost);
                 }
 
-                // DUDA-29: on the last allowed call no later call could use a tool result, so a turn that still asks for
-                // tools other than `rechazar` (and `responder_sin_informacion` when it was offered, i.e. a single
-                // allowed call), even ones that were not offered, is not run: no API call and nothing logged as
-                // consulted. The request ends with the 503 of an exhausted loop.
-                if (isLastCall
-                    && response.ToolCalls.All(c => c.Name != AssistantTools.Reject)
-                    && response.ToolCalls.Any(c => !isFirstCall || c.Name != AssistantTools.NoInformation))
+                // DUDA-29: on the last allowed call no later call could use a tool result. After the first call that
+                // call declares no tool, so any function call it returns (`rechazar` included) was not offered and is
+                // not run: no API call, nothing logged as consulted, and the request ends with the 503 of an exhausted
+                // loop. A single allowed call keeps the previous rule: a turn with `rechazar`, or with only
+                // `responder_sin_informacion`, is run; any other turn is not.
+                if (finalCall
+                    || (isLastCall
+                        && response.ToolCalls.All(c => c.Name != AssistantTools.Reject)
+                        && response.ToolCalls.Any(c => c.Name != AssistantTools.NoInformation)))
                 {
                     break;
                 }
@@ -196,8 +199,8 @@ public sealed partial class AssistantService : IAssistantService
     /// <summary>
     /// Runs the tool calls of one model turn. Returns a final answer when the turn ends the request (<c>rechazar</c> or a
     /// request for non-authorized data, both 403; <c>responder_sin_informacion</c> on the first call, 200), or
-    /// <see langword="null"/> to continue the loop. Never called on the last allowed call after the first one (the
-    /// loop stops a turn that asks for anything but <c>rechazar</c> there).
+    /// <see langword="null"/> to continue the loop. Never called on the last allowed call after the first one (that call
+    /// declares no tool, and the loop stops a turn that asks for any).
     /// </summary>
     /// <remarks>
     /// ESC-COO-08, ESC-COO-09, ESC-INY-13, ESC-INY-14, ESC-INY-16: after the first call

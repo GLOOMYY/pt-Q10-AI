@@ -56,10 +56,10 @@ public class RoundSevenTests
         Assert.EndsWith(SystemInstructions.LaterCall, h.Llm.Requests[1].SystemInstruction, StringComparison.Ordinal);
     }
 
-    // ESC-COO-08, ESC-COO-09: three rounds of tools; the fourth call only offers `rechazar` and its text is a 200 that
-    // uses student data.
+    // ESC-COO-08, ESC-COO-09: three rounds of tools; the fourth call declares no tool (eighth round) and its text is a
+    // 200 that uses student data.
     [Fact]
-    public async Task Fourth_call_offers_only_reject_and_answers_with_the_data()
+    public async Task Fourth_call_declares_no_tool_and_answers_with_the_data()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.FindStudent, new { nombre = "Laura Gómez" }))
@@ -74,7 +74,7 @@ public class RoundSevenTests
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.True(answer.UsedStudentData);
         Assert.Equal(4, h.Llm.CallCount);
-        Assert.Equal([AssistantTools.Reject], Names(h.Llm.Requests[3].Tools));
+        Assert.Empty(h.Llm.Requests[3].Tools);
         Assert.All(h.Llm.Requests.Skip(1), r => Assert.DoesNotContain(AssistantTools.NoInformation, Names(r.Tools)));
     }
 
@@ -100,11 +100,12 @@ public class RoundSevenTests
         Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
     }
 
-    // R-ARQ-04: `rechazar` is still a 403 on any call (second, third and last).
+    // R-ARQ-04: `rechazar` is still a 403 on the first three calls, and offered on each of them (eighth round: the
+    // fourth and last call declares no tool).
     [Theory]
+    [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
-    [InlineData(3)]
     public async Task Reject_works_on_any_call(int rejectCall)
     {
         var h = new AssistantHarness();

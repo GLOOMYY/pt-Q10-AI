@@ -61,9 +61,10 @@ public class RoundFourTests
         Assert.False(answer.UsedStudentData);
     }
 
-    // `rechazar` on the last allowed call still ends the request with its 403.
+    // Eighth round (ESC-COO-08; R-ARQ-04, D-32): the last allowed call declares no tool, so a `rechazar` asked for
+    // there was not offered and is not run: 503, nothing logged as a tool. `rechazar` stays on every earlier call.
     [Fact]
-    public async Task Reject_on_the_last_allowed_call_is_still_403()
+    public async Task Reject_on_the_last_allowed_call_is_not_run()
     {
         var h = new AssistantHarness();
         h.Options.MaxLlmCalls = 2;
@@ -73,7 +74,11 @@ public class RoundFourTests
 
         var answer = await h.AskStudentAsync("¿Qué nota sacó EST-003?");
 
-        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+        Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
+        Assert.Equal(2, h.Llm.CallCount);
+        Assert.Empty(h.Llm.Requests[1].Tools);
+        Assert.Contains(h.Llm.Requests[0].Tools, t => t.Name == AssistantTools.Reject);
+        Assert.Equal([AssistantTools.SearchRegulations], h.Log.Tools);
     }
 
     // ESC-COO-13, R-SEG-12, D-21: with a first name only, the data tool never reads a match's data, even if the model
