@@ -1,0 +1,47 @@
+{
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "../tutorflow-wt"
+    ],
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Bash",
+      "PowerShell"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env)",
+      "Edit(./.env)",
+      "Edit(**/.env)",
+      "Write(./.env)",
+      "Write(**/.env)",
+      "Bash(cat .env:*)",
+      "Bash(type .env:*)",
+      "Bash(git rebase:*)",
+      "Bash(git pull --rebase:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git merge --squash:*)",
+      "Bash(git commit --no-verify:*)",
+      "Bash(git commit -n:*)",
+      "Bash(git push --no-verify:*)",
+      "Bash(gh pr merge --squash:*)",
+      "Bash(gh pr merge --rebase:*)",
+      "PowerShell(git rebase:*)",
+      "PowerShell(git push --force:*)",
+      "PowerShell(git push -f:*)",
+      "PowerShell(git merge --squash:*)",
+      "PowerShell(git commit --no-verify:*)",
+      "PowerShell(Get-Content .env:*)"
+    ]
+  }
+}
