@@ -1,0 +1,73 @@
+#!/bin/sh
+# commit-msg · TutorFlow (AGENTS §9.2, §9.4)
+#
+# Validates the commit message:
+#   - title in Conventional Commits form: type(scope optional): description
+#     with type one of feat|fix|test|ci|docs|refactor|build|chore;
+#   - a blank line before the trailer when there is a body;
+#   - the last line is exactly "Generado-por: Claude Code";
+#   - no Co-Authored-By trailer anywhere.
+# Merge commits are exempt (AGENTS §9.2): they carry MERGE_HEAD while the merge is in progress.
+#
+# Usage: sh .githooks/commit-msg <message-file>
+# The CI runs this same script on every non-merge commit of a PR.
+# POSIX sh, so it runs under Git Bash (Windows), Linux and the CI runner.
+
+set -u
+
+TRAILER="Generado-por: Claude Code"
+
+fail() {
+  echo "commit-msg: $1" >&2
+  echo "commit-msg: expected format: type(scope): description / blank line / body / blank line / $TRAILER" >&2
+  exit 1
+}
+
+MSG_FILE="${1:-}"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  echo "commit-msg: missing message file argument." >&2
+  exit 1
+fi
+
+# Merge commit in progress: exempt from the format and trailer checks.
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || GIT_DIR=""
+if [ -n "$GIT_DIR" ] && [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+  exit 0
+fi
+
+# Strip git comment lines and Windows CR characters. Command substitution also drops
+# trailing empty lines, so the last line below is always the last real line.
+CLEAN=$(sed -e 's/\r$//' -e '/^#/d' "$MSG_FILE")
+if [ -z "$CLEAN" ]; then
+  fail "the commit message is empty."
+fi
+
+TITLE=$(printf '%s\n' "$CLEAN" | sed -n '1p')
+LAST=$(printf '%s\n' "$CLEAN" | tail -n 1)
+NLINES=$(printf '%s\n' "$CLEAN" | wc -l | tr -d ' ')
+
+# Title: Conventional Commits type, optional scope, and a non-empty description.
+if ! printf '%s\n' "$TITLE" | grep -Eq '^(feat|fix|test|ci|docs|refactor|build|chore)(\([a-z0-9][a-z0-9._/-]*\))?: .*[^[:space:]]'; then
+  fail "the title does not follow Conventional Commits: '$TITLE'"
+fi
+
+# Co-Authored-By is not allowed anywhere in the message (AGENTS §9.2).
+if printf '%s\n' "$CLEAN" | grep -Eiq '^co-authored-by:'; then
+  fail "Co-Authored-By is not allowed (AGENTS §9.2)."
+fi
+
+# The trailer must be the last line, exactly as written.
+if [ "$LAST" != "$TRAILER" ]; then
+  fail "the last line must be exactly: $TRAILER"
+fi
+
+# The trailer must be separated from the rest by a blank line.
+if [ "$NLINES" -lt 2 ]; then
+  fail "the trailer must be preceded by a blank line."
+fi
+PREV=$(printf '%s\n' "$CLEAN" | tail -n 2 | head -n 1)
+case "$PREV" in
+  *[![:space:]]*) fail "the trailer must be preceded by a blank line." ;;
+esac
+
+exit 0

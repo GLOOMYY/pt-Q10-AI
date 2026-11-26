@@ -1,1 +1,25 @@
+# Secrets: the real .env is never versioned (AGENTS §7, R-DEP-02). Only .env.example is.
 .env
+.env.*
+!.env.example
+
+# Runtime data, such as the audit log (R-LOG-07).
+var/
+
+# .NET build artifacts (AGENTS §6).
+bin/
+obj/
+TestResults/
+.vs/
+*.user
+*.suo
+
+# Frontend dependencies and build output (F4).
+node_modules/
+src/frontend/dist/
+
+# Operating system and editor files.
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

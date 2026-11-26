@@ -205,7 +205,22 @@ Los demás archivos de la raíz (`Dockerfile`, `docker-compose.yml`, `.env.examp
 
 ## 11. Comandos
 
-_(La completa **devops** en F0, con los comandos reales para compilar, probar, ejecutar `evals/`, levantar con `docker compose` y activar los hooks.)_
+Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o del worktree). Git Bash o PowerShell.
+
+| Qué | Comando |
+| --- | --- |
+| Compilar la solución | `dotnet build src/backend/TutorFlow.sln` |
+| Ejecutar `tests/` (LLM falso) | `dotnet test src/backend/TutorFlow.sln` |
+| Ejecutar `evals/` (LLM real) | Todavía no existe: `evals/` se crea en F3 y solo se ejecuta en F5 · Pruebas finales. |
+| Preparar la configuración local | `cp .env.example .env` y pon tu `LLM_API_KEY` real. El `.env` no se versiona. |
+| Levantar el sistema | `docker compose up --build`. Frontend y API en `http://localhost:8080`. |
+| Comprobar que levanta | `curl http://localhost:8080/api/salud` debe responder `200`. |
+| Parar el sistema | `docker compose down` |
+| Activar los git hooks | `git config core.hooksPath .githooks` (una vez por clon; lo comparten todos los worktrees). |
+| Validar un mensaje de commit a mano | `sh .githooks/commit-msg <archivo-con-el-mensaje>` |
+
+- El `pre-commit` compila la solución y ejecuta `tests/`. El `commit-msg` valida el formato y el trailer `Generado-por: Claude Code`. Los commits de merge están exentos.
+- La CI (`.github/workflows/ci.yml`) repite estas comprobaciones en cada PR a `main`.
 
 ## 12. Definición de terminado
 
