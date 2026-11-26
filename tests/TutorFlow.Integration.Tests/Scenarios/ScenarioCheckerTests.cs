@@ -20,11 +20,11 @@ public sealed class ScenarioCheckerTests
             verifies.Length == 0 ? ["R-QA-01"] : verifies,
             ScenarioLevel.Api,
             Precondition.ApiUp,
-            JsonDocument.Parse("{}").RootElement.Clone(),
-            JsonDocument.Parse(expected).RootElement.Clone());
+            JsonElement.Parse("{}"),
+            JsonElement.Parse(expected));
 
     private static ObservedResult Observe(int status, string body, string? record = null, params int[] after) =>
-        new(status, body, record is null ? null : JsonDocument.Parse(record).RootElement.Clone(), after);
+        new(status, body, record is null ? null : JsonElement.Parse(record), after);
 
     private const string Ok200 =
         """{"respuesta":"La nota mínima es 3.0","citas":[{"documento":"reglamento_academico_2025.md","seccion":"Artículo 5"}],"usoDatosEstudiante":false,"tokens":120,"costoUsd":0.0001}""";

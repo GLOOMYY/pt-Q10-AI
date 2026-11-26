@@ -71,7 +71,7 @@ public sealed class ScenarioReaderTests
     [Fact]
     public void Generated_values_have_the_exact_lengths_of_the_table()
     {
-        string Question(string id) => JsonDocument.Parse(ScenarioRequest.From(ScenarioData.Get(id)).Body!).RootElement.GetProperty("pregunta").GetString()!;
+        string Question(string id) => JsonElement.Parse(ScenarioRequest.From(ScenarioData.Get(id)).Body!).GetProperty("pregunta").GetString()!;
 
         var t1000 = Question("ESC-ENT-03");
         Assert.Equal(1000, t1000.Length);

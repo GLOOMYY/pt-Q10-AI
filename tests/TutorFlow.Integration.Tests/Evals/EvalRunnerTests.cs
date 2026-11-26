@@ -109,7 +109,7 @@ public sealed class EvalRunnerTests
     {
         var scenario = ScenarioData.Get("ESC-ENT-01") with
         {
-            Expected = JsonDocument.Parse("""{"status":200,"respuesta":{"contiene":["3.0"]}}""").RootElement.Clone(),
+            Expected = JsonElement.Parse("""{"status":200,"respuesta":{"contiene":["3.0"]}}"""),
         };
         await using var host = new IntegrationHost();
         using var http = host.CreateClient();
@@ -125,7 +125,7 @@ public sealed class EvalRunnerTests
     [Fact]
     public async Task An_unknown_generation_marker_makes_the_scenario_fail()
     {
-        var body = JsonDocument.Parse("""{"metodo":"POST","ruta":"/api/asistente/preguntar","cuerpo":{"pregunta":"<generar: algo desconocido>","usuario":{"rol":"estudiante","id":"EST-001"}}}""").RootElement.Clone();
+        var body = JsonElement.Parse("""{"metodo":"POST","ruta":"/api/asistente/preguntar","cuerpo":{"pregunta":"<generar: algo desconocido>","usuario":{"rol":"estudiante","id":"EST-001"}}}""");
         var scenario = ScenarioData.Get("ESC-ENT-03") with { Input = body };
         await using var host = new IntegrationHost();
         using var http = host.CreateClient();
