@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\TutorFlow.Application\TutorFlow.Application.csproj" />
+    <!-- Composition root only (AGENTS 5). -->
+    <ProjectReference Include="..\TutorFlow.Infrastructure\TutorFlow.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
