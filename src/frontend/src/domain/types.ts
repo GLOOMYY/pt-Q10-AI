@@ -30,12 +30,14 @@ export interface AssistantResponse {
  * Outcome of asking a question.
  * - `ok`: HTTP 200.
  * - `backend-error`: 400, 403 or 503; `body.respuesta` is the backend text (R-FRO-06).
- * - `network-error`: no usable backend answer (network failure, other status, bad body).
+ * - `network-error`: the request failed before any response (connection failure).
+ * - `unexpected-response`: a response arrived but is unusable (unforeseen status or invalid body).
  */
 export type AskResult =
   | { kind: "ok"; body: AssistantResponse }
   | { kind: "backend-error"; status: 400 | 403 | 503; body: AssistantResponse }
-  | { kind: "network-error" };
+  | { kind: "network-error" }
+  | { kind: "unexpected-response" };
 
 /** Port to the assistant backend. */
 export interface AssistantPort {

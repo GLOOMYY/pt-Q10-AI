@@ -22,6 +22,11 @@ export function ChatMessage({ entry }: { entry: ChatEntry }) {
           <strong>No se pudo conectar con el servidor</strong>
           <p>Revisa tu conexión e inténtalo de nuevo.</p>
         </div>
+      ) : result.kind === "unexpected-response" ? (
+        <div className="answer error error-network" role="alert">
+          <strong>Respuesta inesperada del servidor</strong>
+          <p>El servidor respondió de una forma que no se pudo interpretar. Inténtalo de nuevo más tarde.</p>
+        </div>
       ) : (
         <div
           className={result.kind === "ok" ? "answer" : `answer error error-${result.status}`}

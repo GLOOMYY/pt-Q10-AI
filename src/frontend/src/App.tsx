@@ -22,6 +22,8 @@ export function App({ assistant }: AppProps) {
   /** Bumped on every user change so late answers of the previous user are discarded. */
   const session = useRef(0);
   const nextId = useRef(1);
+  /** Synchronous guard against double submits (e.g. fast Enter) before state updates. */
+  const inFlight = useRef(false);
 
   function changeUser(id: string) {
     const selected = TEST_USERS.find((u) => u.id === id);
@@ -30,18 +32,21 @@ export function App({ assistant }: AppProps) {
     setUser(selected);
     setEntries([]);
     setText("");
+    inFlight.current = false;
     setLoading(false);
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (loading || !isSendable(text)) return;
+    if (inFlight.current || !isSendable(text)) return;
+    inFlight.current = true;
     const question = text.trim();
     const current = session.current;
     setLoading(true);
     setText("");
     const result = await assistant.ask(question, user);
     if (current !== session.current) return;
+    inFlight.current = false;
     setEntries((prev) => [...prev, { id: nextId.current++, question, result }]);
     setLoading(false);
   }

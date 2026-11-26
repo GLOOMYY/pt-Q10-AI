@@ -93,7 +93,9 @@ describe("R-FRO-06 errors", () => {
     reply(403, body({ respuesta: "No" }));
     expect(await httpAssistant.ask("p", user)).toMatchObject({ kind: "backend-error", status: 403 });
     reply(500, { title: "boom" });
-    expect(await httpAssistant.ask("p", user)).toEqual({ kind: "network-error" });
+    expect(await httpAssistant.ask("p", user)).toEqual({ kind: "unexpected-response" });
+    reply(200, body({ citas: [{ documento: 1 } as never] }));
+    expect(await httpAssistant.ask("p", user)).toEqual({ kind: "unexpected-response" });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fail")));
     expect(await httpAssistant.ask("p", user)).toEqual({ kind: "network-error" });
     vi.unstubAllGlobals();
