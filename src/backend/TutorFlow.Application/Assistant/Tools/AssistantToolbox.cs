@@ -53,6 +53,18 @@ public sealed class AssistantToolbox
         return user.IsCoordinator ? AssistantTools.CoordinatorDefinitions : AssistantTools.StudentDefinitions;
     }
 
+    /// <summary>
+    /// The fixed 200 answer of a <see cref="AssistantTools.NoInformation"/> call (R-RES-03, R-RES-07). It never reads
+    /// any data.
+    /// </summary>
+    /// <param name="call">The call, with its untrusted <c>caso</c> argument.</param>
+    /// <returns>The fixed Spanish answer.</returns>
+    public static string NoInformationAnswer(LlmToolCall call)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+        return AssistantTools.NoInformationText(Arguments.String(call.Arguments, "caso"));
+    }
+
     /// <summary>Executes one tool call of the model.</summary>
     /// <param name="user">The session user (R-SEG-06).</param>
     /// <param name="call">The call, with untrusted arguments.</param>

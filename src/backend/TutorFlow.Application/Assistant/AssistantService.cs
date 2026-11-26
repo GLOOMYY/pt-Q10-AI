@@ -166,7 +166,8 @@ public sealed partial class AssistantService : IAssistantService
 
     /// <summary>
     /// Runs the tool calls of one model turn. Returns a final answer when the turn ends the request (<c>rechazar</c> or a
-    /// request for non-authorized data, both 403), or <see langword="null"/> to continue the loop.
+    /// request for non-authorized data, both 403; <c>responder_sin_informacion</c>, 200), or <see langword="null"/> to
+    /// continue the loop.
     /// </summary>
     private async Task<AssistantAnswer?> RunToolsAsync(
         SessionUser user,
@@ -184,6 +185,20 @@ public sealed partial class AssistantService : IAssistantService
             _audit.RecordTool(reject.Name);
             var rejected = await _toolbox.ExecuteAsync(user, reject, state, cancellationToken).ConfigureAwait(false);
             return AssistantAnswer.Forbidden(rejected.Reason!, tokens, cost);
+        }
+
+        // R-RES-03, R-RES-07: the non-rejecting exit ends the request with a fixed 200 answer, no citations and no
+        // data; no other call of that turn is run, so nothing is consulted for an answer that does not use it.
+        var noInformation = response.ToolCalls.FirstOrDefault(c => c.Name == AssistantTools.NoInformation);
+        if (noInformation is not null)
+        {
+            _audit.RecordTool(noInformation.Name);
+            return AssistantAnswer.Answered(
+                AssistantToolbox.NoInformationAnswer(noInformation),
+                [],
+                usedStudentData: false,
+                tokens,
+                cost);
         }
 
         messages.Add(LlmMessage.Model(response.Text, response.ToolCalls));
