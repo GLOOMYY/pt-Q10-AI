@@ -283,7 +283,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Fecha:** 2026-11-26
 - **Rol / rama:** seguridad / seguridad/f2 (PR #13)
 - **Referencia:** FABRICA §3, R-LOG-01, R-LOG-07, R-LOG-09
-- **Tipo:** permiso
+- **Tipo:** ambigüedad
 - **Bloqueante:** no
 - **Descripción:** FABRICA §3 da a seguridad `Api/Middleware/` e `Infrastructure/Audit/`, pero no las carpetas de pruebas correspondientes (`tests/TutorFlow.Api.Tests/` es de nucleo; `tests/TutorFlow.Infrastructure.Tests/Audit/` no tiene dueño).
 - **Qué quedó pendiente:** nada; ver respuesta.
@@ -385,3 +385,39 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar; alternativa: 200 con "sin coincidencias en tus programas".
 - **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-33 · Orden de `log.estudiantesConsultados` en los escenarios
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** integracion / integracion/f3 (PR #17)
+- **Referencia:** escenarios/README §4.1 ("lista exacta de IDs"), R-LOG-04
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** §4.1 dice "lista exacta de IDs" sin precisar si importa el orden. Con el LLM real el orden de consulta puede variar. Los ejecutores lo comparan como multiconjunto (mismos IDs, mismas veces, sin importar el orden).
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** confirmar la comparación sin orden.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-34 · Escenarios 403 de coordinador guionizados sin `rechazar`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** integracion / integracion/f3 (PR #17)
+- **Referencia:** D-32, R-SEG-03, ESC-COO-16, ESC-COO-19
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** en `tests/`, ESC-COO-16 y ESC-COO-19 se guionizan con el modelo llamando a una herramienta de datos no autorizada (en lugar de `rechazar`), para probar el 403 por autorización de la herramienta. El resto de los 403 por `rechazar` lo invocan antes de cualquier herramienta de datos.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantenerlo; el revisor del PR #17 lo valida.
+- **Respuesta:** _Resuelta por el orquestador: se acepta si el revisor confirma que verifica lo que el escenario pide._
+
+## DUDA-35 · `evals/` y la `LLM_API_KEY`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** revisor / integracion/f3 (PR #17)
+- **Referencia:** AGENTS §7 ("`evals/` la recibe por el entorno del proceso"), AGENTS §10 (`.env`), R-QA-01, F5
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** AGENTS §7 dice que `evals/` recibe la clave real por el entorno del proceso. Con la arquitectura actual, el ejecutor de `evals/` solo hace peticiones HTTP al backend levantado con `docker compose`, y quien usa la clave es el backend, que la lee del `.env` del responsable. Exigirla también en el ejecutor no aporta nada e impediría a la fábrica lanzar F5, porque ningún agente puede leer `.env`.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** el ejecutor no exige la clave; antes de empezar comprueba con una pregunta real que el backend responde 200 con `tokens > 0`. El responsable mantiene la clave real en el `.env` del stack. Si quiere, ajusta la frase de AGENTS §7.
+- **Respuesta:** _Resuelta por el orquestador de forma provisional aplicando la propuesta (PR #17)._
