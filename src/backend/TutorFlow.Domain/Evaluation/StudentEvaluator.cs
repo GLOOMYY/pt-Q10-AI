@@ -55,7 +55,7 @@ public static class StudentEvaluator
         {
             return new CourseEvaluation(
                 course.Code, course.Name, grades?.Credits, reason, grades?.Cut1, grades?.Cut2, grades?.Cut3,
-                FinalGrade: null, Accumulated: null, AbsenceStatus.Unknown, CourseOutcome.Inconsistent, HabilitationStatus.Undetermined);
+                GradeFromCuts: null, Accumulated: null, AbsenceStatus.Unknown, CourseOutcome.Inconsistent, HabilitationStatus.Undetermined);
         }
 
         // FindInconsistency guarantees both rows and their required values exist.
@@ -70,6 +70,8 @@ public static class StudentEvaluator
         return new CourseEvaluation(
             course.Code, course.Name, grades.Credits, InconsistencyReason: null, grades.Cut1, grades.Cut2, grades.Cut3,
             finalGrade, accumulated, absences, ClassifyOutcome(finalGrade, absences),
+            // R-HAB-02: the course type (internship, degree project) is not in the API and is never deduced from the
+            // course name (DUDA-22), so no type is passed and the exclusion by type is not applied here.
             HabilitationRules.Evaluate(finalGrade, absences));
     }
 
@@ -147,6 +149,10 @@ public static class StudentEvaluator
                 .Where(x => x.Grade is not null)
                 .Select(x => new WeightedGrade(x.Grade!.Value, x.Credits!.Value)));
 
+    /// <remarks>
+    /// Inconsistent courses are left out of the average (R-CAL-12), so with any of them the conclusion is provisional:
+    /// callers must report it as such using <see cref="StudentEvaluation.HasInconsistentCourses"/>.
+    /// </remarks>
     private static ProbationStatus EvaluateProbation(CourseEvaluation[] courses)
     {
         // Monotone in the unknown absences: comparing both extremes covers every possibility.

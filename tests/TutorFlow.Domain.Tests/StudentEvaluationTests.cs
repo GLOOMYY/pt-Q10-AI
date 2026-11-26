@@ -64,7 +64,8 @@ public class StudentEvaluationTests
         Assert.Equal(2.28m, e.Average!.Value);
         CourseEvaluation databases = e.Courses.Single(c => c.Code == "BD-203");
         Assert.Equal(CourseOutcome.LostByAbsences, databases.Outcome);
-        Assert.Equal(3.8m, databases.FinalGrade); // the cuts give 3.8 but it is not the final grade
+        Assert.Equal(0.0m, databases.FinalGrade); // R-CAL-06, CL-03: the final grade is 0.0
+        Assert.Equal(3.8m, databases.GradeFromCuts); // the cuts alone give 3.8, which is not the final grade
         Assert.Equal(HabilitationStatus.NotEligible, databases.Habilitation);
         Assert.Equal(["CAL-201"], e.HabilitableCourses.Select(c => c.Code));
         Assert.Equal(ProbationStatus.InProbation, e.Probation);

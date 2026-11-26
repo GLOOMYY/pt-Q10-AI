@@ -12,7 +12,7 @@ namespace TutorFlow.Domain.Evaluation;
 /// <param name="Cut1">Cut 1 as received.</param>
 /// <param name="Cut2">Cut 2 as received.</param>
 /// <param name="Cut3">Cut 3 as received.</param>
-/// <param name="FinalGrade">Rounded final grade from the cuts (1 decimal), or <see langword="null"/> if a cut is missing or the course is inconsistent. It is not 0.0 for a course lost by absences; see <see cref="EffectiveGrade"/>.</param>
+/// <param name="GradeFromCuts">Rounded grade computed from the three cuts (1 decimal), or <see langword="null"/> if a cut is missing or the course is inconsistent. It is NOT the final grade of a course lost by absences (R-CAL-06): use <see cref="FinalGrade"/> for that.</param>
 /// <param name="Accumulated">Accumulated grade when the course has no final grade (D-04), otherwise <see langword="null"/>.</param>
 /// <param name="Absences">Loss by absences.</param>
 /// <param name="Outcome">Academic standing.</param>
@@ -25,12 +25,20 @@ public sealed record CourseEvaluation(
     decimal? Cut1,
     decimal? Cut2,
     decimal? Cut3,
-    decimal? FinalGrade,
+    decimal? GradeFromCuts,
     AccumulatedGrade? Accumulated,
     AbsenceStatus Absences,
     CourseOutcome Outcome,
     HabilitationStatus Habilitation)
 {
+    /// <summary>
+    /// The final grade (definitiva): 0.0 when the course was lost by absences, whatever the cuts (R-CAL-06, CL-03,
+    /// Art. 11); the grade from the cuts otherwise; <see langword="null"/> if the course has none (a cut is missing,
+    /// R-CAL-05) or is inconsistent (R-CAL-12). With unknown absences it is the grade from the cuts, which is provisional.
+    /// </summary>
+    public decimal? FinalGrade =>
+        !IsConsistent ? null : Absences == AbsenceStatus.Lost ? 0.0m : GradeFromCuts;
+
     /// <summary>Whether the data is usable (R-CAL-12).</summary>
     public bool IsConsistent => InconsistencyReason is null;
 
@@ -51,7 +59,7 @@ public sealed record CourseEvaluation(
         }
 
         bool lost = Absences == AbsenceStatus.Lost || (assumeUnknownAbsencesLost && Absences == AbsenceStatus.Unknown);
-        return lost ? 0.0m : FinalGrade;
+        return lost ? 0.0m : GradeFromCuts;
     }
 
     /// <summary>
