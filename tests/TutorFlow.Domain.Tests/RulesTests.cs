@@ -25,6 +25,18 @@ public class RulesTests
         Assert.Equal(HabilitationStatus.NotEligible, HabilitationRules.Evaluate(2.5m, AbsenceStatus.NotLost, isNonHabilitableType: true));
     }
 
+    [Fact]
+    public void Not_habilitable_reason_follows_the_precedence_of_Evaluate_DUDA_42()
+    {
+        Assert.Equal(NotHabilitableReason.NonHabilitableType, HabilitationRules.GetNotHabilitableReason(2.5m, AbsenceStatus.Lost, isNonHabilitableType: true));
+        Assert.Equal(NotHabilitableReason.LostByAbsences, HabilitationRules.GetNotHabilitableReason(2.6m, AbsenceStatus.Lost));
+        Assert.Equal(NotHabilitableReason.NoFinalGrade, HabilitationRules.GetNotHabilitableReason(null, AbsenceStatus.NotLost));
+        Assert.Equal(NotHabilitableReason.GradeBelowMinimum, HabilitationRules.GetNotHabilitableReason(1.8m, AbsenceStatus.NotLost));
+        Assert.Equal(NotHabilitableReason.AlreadyPassed, HabilitationRules.GetNotHabilitableReason(3.0m, AbsenceStatus.NotLost));
+        Assert.Equal(NotHabilitableReason.None, HabilitationRules.GetNotHabilitableReason(2.0m, AbsenceStatus.NotLost));
+        Assert.Equal(NotHabilitableReason.None, HabilitationRules.GetNotHabilitableReason(2.6m, AbsenceStatus.Unknown));
+    }
+
     [Theory]
     [InlineData("4.5", "3.0")] // CL-32 / R-HAB-04 / D-19
     [InlineData("3.0", "3.0")]

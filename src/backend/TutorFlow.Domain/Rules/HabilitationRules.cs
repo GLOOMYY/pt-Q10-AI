@@ -38,6 +38,38 @@ public static class HabilitationRules
     }
 
     /// <summary>
+    /// Why a course is not habilitable, with the same precedence as <see cref="Evaluate"/> (R-HAB-01, R-HAB-02).
+    /// </summary>
+    /// <param name="finalGrade">The rounded grade from the cuts (not the 0.0 imposed by absences); <see langword="null"/> if none.</param>
+    /// <param name="absences">Loss by absences.</param>
+    /// <param name="isNonHabilitableType">Whether the caller says the course is an internship or degree project.</param>
+    /// <returns>The reason, or <see cref="NotHabilitableReason.None"/> when <see cref="Evaluate"/> does not return not eligible.</returns>
+    public static NotHabilitableReason GetNotHabilitableReason(decimal? finalGrade, AbsenceStatus absences, bool isNonHabilitableType = false)
+    {
+        if (isNonHabilitableType)
+        {
+            return NotHabilitableReason.NonHabilitableType;
+        }
+
+        if (absences == AbsenceStatus.Lost)
+        {
+            return NotHabilitableReason.LostByAbsences;
+        }
+
+        if (finalGrade is null)
+        {
+            return NotHabilitableReason.NoFinalGrade;
+        }
+
+        if (finalGrade.Value < MinimumFinalGrade)
+        {
+            return NotHabilitableReason.GradeBelowMinimum;
+        }
+
+        return finalGrade.Value >= GradingRules.PassingGrade ? NotHabilitableReason.AlreadyPassed : NotHabilitableReason.None;
+    }
+
+    /// <summary>
     /// Final grade after a habilitation exam: the exam grade replaces the final grade and is capped at 3.0
     /// (R-HAB-04, CL-32: 4.5 → 3.0).
     /// </summary>

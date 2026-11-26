@@ -39,6 +39,15 @@ public sealed record CourseEvaluation(
     public decimal? FinalGrade =>
         !IsConsistent ? null : Absences == AbsenceStatus.Lost ? 0.0m : GradeFromCuts;
 
+    /// <summary>
+    /// Why the course is not habilitable (R-HAB-01, R-HAB-02, DUDA-42); <see cref="NotHabilitableReason.None"/> unless
+    /// <see cref="Habilitation"/> is not eligible. The type exclusion is never reported here: the type is not in the API (DUDA-22).
+    /// </summary>
+    public NotHabilitableReason NotHabilitableReason =>
+        Habilitation == HabilitationStatus.NotEligible
+            ? HabilitationRules.GetNotHabilitableReason(GradeFromCuts, Absences)
+            : NotHabilitableReason.None;
+
     /// <summary>Whether the data is usable (R-CAL-12).</summary>
     public bool IsConsistent => InconsistencyReason is null;
 
