@@ -87,7 +87,7 @@ public static class StudentReport
                 ["semestre"] = student.Semester is { } semester ? JsonValue.Create(semester) : NoData,
             },
             ["asignaturas"] = courses,
-            ["asignaturasPerdidas"] = Names(evaluation.LostCourses),
+            ["asignaturasPerdidas"] = LostCourses(evaluation.LostCourses),
             ["asignaturasHabilitables"] = Names(evaluation.HabilitableCourses),
             ["creditosMatriculados"] = evaluation.EnrolledCredits,
             ["promedioPeriodo"] = Average(evaluation),
@@ -151,6 +151,22 @@ public static class StudentReport
     /// <returns>A JSON array of names.</returns>
     public static JsonArray Names(IEnumerable<CourseEvaluation> courses) =>
         [.. courses.Select(c => (JsonNode)JsonValue.Create(c.Name))];
+
+    /// <summary>
+    /// Lost courses with the final grade that makes them lost (ESC-BAN-06): the answer must show the grade, not just
+    /// the name (R-RES-02). A course lost by absences shows 0.0 (R-CAL-06).
+    /// </summary>
+    private static JsonArray LostCourses(IEnumerable<CourseEvaluation> courses) =>
+    [
+        .. courses.Select(c => (JsonNode)new JsonObject
+        {
+            ["asignatura"] = c.Name,
+            ["definitiva"] = c.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData,
+            ["motivo"] = c.Outcome == CourseOutcome.LostByAbsences
+                ? "perdida por inasistencia (definitiva 0.0)"
+                : "definitiva menor que 3.0",
+        }),
+    ];
 
     private static JsonObject Course(CourseEvaluation course, AttendanceRecord? row)
     {
@@ -252,6 +268,9 @@ public static class StudentReport
                 .Where(c => c.EffectiveGrade() is not null)
                 .Sum(c => c.Credits ?? 0),
             ["provisional"] = average.IsProvisional,
+
+            // ESC-BAN-02, R-RES-02: the answer shows the final grades and credits the average was computed with.
+            ["desglose"] = Breakdown(evaluation),
         };
 
         if (codes.Count > 0)
@@ -270,6 +289,22 @@ public static class StudentReport
 
         return json;
     }
+
+    /// <summary>
+    /// The courses that enter the average, each with the grade used (0.0 if lost by absences, R-CAL-06) and its
+    /// credits (R-CAL-04). Courses without a final grade or with inconsistent data are left out (R-CAL-05, R-CAL-12).
+    /// </summary>
+    private static JsonArray Breakdown(StudentEvaluation evaluation) =>
+    [
+        .. evaluation.Courses
+            .Where(c => c.EffectiveGrade() is not null)
+            .Select(c => (JsonNode)new JsonObject
+            {
+                ["asignatura"] = c.Name,
+                ["definitiva"] = NumberFormat.Grade(c.EffectiveGrade()!.Value),
+                ["creditos"] = c.Credits is { } credits ? JsonValue.Create(credits) : NoData,
+            }),
+    ];
 
     private static JsonNode CutText(decimal? cut) => cut is { } value ? NumberFormat.Grade(value) : "sin nota";
 }
