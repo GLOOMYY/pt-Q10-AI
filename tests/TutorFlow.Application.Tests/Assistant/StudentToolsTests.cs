@@ -20,6 +20,8 @@ public class StudentToolsTests
 
     private static readonly string[] TwoCourses = ["Programación Orientada a Objetos", "Bases de Datos"];
 
+    private static readonly string[] Est001FinalGrades = ["4.0", "4.1", "4.5", "4.8"];
+
     private static string Text(JsonElement element, string property) => element.GetProperty(property).GetString()!;
 
     private static JsonElement Course(JsonElement report, string code) =>
@@ -86,6 +88,55 @@ public class StudentToolsTests
         Assert.Equal(
             [Notas, Asistencia],
             report.GetProperty("citasDatos").EnumerateArray().Select(c => Text(c, "seccion")));
+    }
+
+    // ESC-BAN-02, R-RES-02: the average carries the final grades and credits it was computed with (4.5, 4.8, 4.1, 4.0).
+    [Fact]
+    public async Task Average_reports_the_breakdown_of_final_grades_and_credits()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Tu promedio es 4.39.", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Cuál es mi promedio ponderado del periodo?");
+
+        var breakdown = h.ToolResult().GetProperty("promedioPeriodo").GetProperty("desglose").EnumerateArray().ToList();
+        Assert.Equal(
+            Est001FinalGrades,
+            breakdown.Select(c => Text(c, "definitiva")).Order(StringComparer.Ordinal));
+        Assert.All(breakdown, c => Assert.True(c.GetProperty("creditos").GetInt32() > 0));
+    }
+
+    // ESC-BAN-06, ESC-EST-04: a lost course is reported with its final grade, not only its name.
+    [Fact]
+    public async Task Lost_courses_carry_their_final_grade()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Perdiste Microeconomía (1.8) y Estadística (2.3).", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Qué asignaturas perdí?", "EST-005");
+
+        var lost = h.ToolResult().GetProperty("asignaturasPerdidas").EnumerateArray()
+            .ToDictionary(c => Text(c, "asignatura"), c => Text(c, "definitiva"));
+        Assert.Equal("1.8", lost["Microeconomía"]);
+        Assert.Equal("2.3", lost["Estadística"]);
+    }
+
+    // ESC-EST-01, CL-03, R-CAL-06: a course lost by absences is listed as lost with final grade 0.0 and its reason.
+    [Fact]
+    public async Task Course_lost_by_absences_is_listed_with_zero_and_its_reason()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Perdiste Bases de Datos por inasistencia (0.0).", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Qué asignaturas perdí?", "EST-002");
+
+        var databases = h.ToolResult().GetProperty("asignaturasPerdidas").EnumerateArray()
+            .Single(c => Text(c, "asignatura") == "Bases de Datos");
+        Assert.Equal("0.0", Text(databases, "definitiva"));
+        Assert.Contains("inasistencia", Text(databases, "motivo"), StringComparison.Ordinal);
     }
 
     // ESC-ENT-18, API-05: the id is normalized and the session id is used by the tools.
