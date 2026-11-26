@@ -84,7 +84,7 @@ public sealed class EvalOptions
     public const string Usage = """
         TutorFlow evals: api scenarios against the running system (docker compose) with the REAL LLM.
 
-        Requires LLM_API_KEY (the real key) in this process environment; it is never read from .env nor printed.
+        The stack must be up (docker compose) with the real LLM key configured in its .env; a probe question checks it before running.
 
         Options:
           --base-url <url>      System under test. Default http://localhost:8080

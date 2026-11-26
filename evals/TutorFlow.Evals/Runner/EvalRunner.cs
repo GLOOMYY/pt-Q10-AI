@@ -61,6 +61,37 @@ public sealed class EvalRunner(
 {
     private const string CorrelationHeader = "X-Correlation-Id";
 
+    /// <summary>
+    /// Sends a probe question (a scenario that must answer 200) before the run to check that the backend has an operational
+    /// real LLM: a 503 or <c>tokens = 0</c> means the key or the model is not working.
+    /// </summary>
+    /// <param name="scenario">The probe scenario (ESC-BAN-01), read from <c>escenarios/</c>.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns><see langword="null"/> if the backend answered 200 with tokens; otherwise the message to show.</returns>
+    public async Task<string?> ProbeAsync(Scenario scenario, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        const string NotOperational = "El backend no tiene un LLM real operativo (revisa la LLM_API_KEY en el .env del stack)";
+        try
+        {
+            using var response = await SendAsync(ScenarioRequest.From(scenario), $"evals-{options.RunId}-probe", cancellationToken).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if ((int)response.StatusCode != 200)
+            {
+                return $"{NotOperational}: the probe question answered {(int)response.StatusCode}.";
+            }
+
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.TryGetProperty("tokens", out var tokens) && tokens.ValueKind == JsonValueKind.Number && tokens.GetInt32() > 0
+                ? null
+                : $"{NotOperational}: the probe question answered 200 with tokens = 0.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return $"{NotOperational}: the probe question failed ({ex.Message}).";
+        }
+    }
+
     /// <summary>Runs the scenarios.</summary>
     /// <param name="scenarios">The scenarios to run (those of level <c>unitario</c> are ignored).</param>
     /// <param name="cancellationToken">Cancellation.</param>
@@ -97,7 +128,7 @@ public sealed class EvalRunner(
 
     private async Task<List<(string Id, EvalResult Result)>> RunWithApiStoppedAsync(List<Scenario> stopped, CancellationToken cancellationToken)
     {
-        var results = new List<(string, EvalResult)>();
+        var results = new List<(string Id, EvalResult Result)>();
         progress?.Invoke("Stopping the simulated API (mock-api)...");
         try
         {
@@ -107,20 +138,30 @@ public sealed class EvalRunner(
                 results.Add((scenario.Id, await RunOneAsync(scenario, cancellationToken).ConfigureAwait(false)));
             }
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // The API could not be stopped: the scenarios that were not run fail with the reason, they are not skipped.
-            foreach (var scenario in stopped.Where(s => results.TrueForAll(r => r.Item1 != s.Id)))
+            // docker missing from the PATH, or the API could not be stopped: the scenarios not run fail with the reason.
+            foreach (var scenario in stopped.Where(s => results.TrueForAll(r => r.Id != s.Id)))
             {
                 results.Add((scenario.Id, Failed(scenario, $"The simulated API could not be stopped: {ex.Message}")));
             }
         }
-        finally
-        {
-            progress?.Invoke("Starting the simulated API again...");
 
+        progress?.Invoke("Starting the simulated API again...");
+        try
+        {
             // Never leave the stack without the simulated API, even if the run is cancelled: no token here on purpose.
             await mockApi.StartAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The state of the stack is unknown: the scenarios are marked as failed and the report is still written.
+            var reason = $"The simulated API could not be started again: {ex.Message}";
+            for (var i = 0; i < results.Count; i++)
+            {
+                var (id, result) = results[i];
+                results[i] = (id, result with { Status = EvalStatus.Failed, Failures = [.. result.Failures, reason] });
+            }
         }
 
         return results;

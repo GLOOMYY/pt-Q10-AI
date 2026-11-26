@@ -137,6 +137,60 @@ public sealed class EvalRunnerTests
         Assert.Empty(host.Audit.Records);
     }
 
+    private sealed class BrokenSwitch(bool failStop, bool failStart) : IMockApiSwitch
+    {
+        public Task StopAsync(CancellationToken cancellationToken) =>
+            failStop ? Task.FromException(new System.ComponentModel.Win32Exception("docker not found")) : Task.CompletedTask;
+
+        public Task StartAsync(CancellationToken cancellationToken) =>
+            failStart ? Task.FromException(new InvalidOperationException("restart failed")) : Task.CompletedTask;
+    }
+
+    [Theory]
+    [InlineData(true, false, "could not be stopped")]
+    [InlineData(false, true, "could not be started again")]
+    public async Task Docker_problems_mark_the_detenida_scenarios_as_failed_with_the_reason(bool failStop, bool failStart, string expected)
+    {
+        var detenida = ScenarioData.ApiScenarios.Where(s => s.Precondition == Precondition.ApiDown).ToList();
+        await using var host = new IntegrationHost();
+        using var http = host.CreateClient();
+        var runner = new EvalRunner(
+            http,
+            new InMemoryAuditSource(host.Audit),
+            new BrokenSwitch(failStop, failStart),
+            new ScenarioChecker(GlobalCitationRules.Load()),
+            new EvalRunOptions("test", TimeSpan.Zero, TimeSpan.FromMilliseconds(200)));
+
+        var results = await runner.RunAsync(detenida, CancellationToken.None);
+
+        Assert.All(results, r => Assert.Equal(EvalStatus.Failed, r.Status));
+        Assert.All(results, r => Assert.Contains(r.Failures, f => f.Contains(expected, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task The_probe_question_detects_a_backend_without_an_operational_llm()
+    {
+        var probe = ScenarioData.Get("ESC-BAN-01");
+
+        await using var down = new IntegrationHost();
+        down.Llm.SimulateQuotaExhausted();
+        using var downHttp = down.CreateClient();
+        var broken = await Runner(down, new FakeApiSwitch(down.Api), downHttp).ProbeAsync(probe, CancellationToken.None);
+        Assert.Contains("no tiene un LLM real operativo", broken, StringComparison.Ordinal);
+        Assert.Contains("503", broken, StringComparison.Ordinal);
+
+        await using var zero = new IntegrationHost();
+        zero.Llm.EnqueueText("""{"respuesta":"3.0","citas":[]}""");
+        zero.Llm.Respond(_ => TutorFlow.Testing.Llm.FakeLlmReply.FromText("""{"respuesta":"3.0","citas":[]}""").WithTokens(0, 0));
+        using var zeroHttp = zero.CreateClient();
+        Assert.Contains("tokens = 0", await Runner(zero, new FakeApiSwitch(zero.Api), zeroHttp).ProbeAsync(probe, CancellationToken.None), StringComparison.Ordinal);
+
+        await using var ok = new IntegrationHost();
+        ok.Llm.Respond(_ => TutorFlow.Testing.Llm.FakeLlmReply.FromText("""{"respuesta":"3.0","citas":[]}"""));
+        using var okHttp = ok.CreateClient();
+        Assert.Null(await Runner(ok, new FakeApiSwitch(ok.Api), okHttp).ProbeAsync(probe, CancellationToken.None));
+    }
+
     [Fact]
     public async Task The_jsonl_audit_source_finds_the_line_of_a_correlation_id_even_with_a_partial_last_line()
     {

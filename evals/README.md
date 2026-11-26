@@ -8,24 +8,23 @@ Ejecutor de los escenarios de nivel `api` de `escenarios/` contra el sistema lev
 - Las 10 preguntas de `material/preguntas_ejemplo.json` son los escenarios `ESC-BAN-01..10` (una prueba en `tests/` comprueba que coinciden); se ejecutan una sola vez, como `ESC-BAN`.
 - Por cada escenario envía su propia cabecera `X-Correlation-Id` (única: `evals-<run>-<ID>`), busca el registro en `./var/auditoria/auditoria.jsonl` por ese `correlationId` (debe haber exactamente uno) y aplica **todas** las comprobaciones de la columna `evals/` de §4.4: `status`, `respuesta.igual/contiene/noContiene` (reglas de §4.1: sin mayúsculas ni tildes salvo `ñ`, límites numéricos), `citas.*` (multiconjunto), comprobación global de citas (§4.3), `usoDatosEstudiante`, `tokens`/`costoUsd` (`0` o `">0"`), `log.*` (§5.3) y `despues`.
 - `log.estudiantesConsultados` de los 403 resueltos por `rechazar` (escenarios que verifican `R-ARQ-04`) no se comprueba aquí: solo en `tests/` (D-32).
-- `api-simulada-detenida`: detiene el contenedor `mock-api` (`docker compose stop mock-api`) una sola vez para todos esos escenarios y lo vuelve a levantar y esperar a que esté sano (siempre, también si hay error).
+- `api-simulada-detenida`: detiene el contenedor `mock-api` (`docker compose stop mock-api`) una sola vez para todos esos escenarios y lo vuelve a levantar y esperar a que esté sano (siempre, también si hay error). Si `docker` no está en el `PATH` o `mock-api` no se puede detener o relevantar, esos escenarios se marcan como fallidos con el motivo y el informe se escribe igual.
 - `llm-cuota-agotada` **nunca** se ejecuta aquí (solo `tests/`); se informa como "no ejecutado". Los escenarios `unitario` tampoco (solo `tests/`).
 - Produce un informe por consola y dos archivos en `var/evals/` (ignorado por git): `informe-<run>.md` y `informe-<run>.json`, con aprobado/fallido por escenario, agrupado por archivo de escenarios, el motivo de cada fallo y los requisitos afectados (campo **Verifica**).
 
-Código de salida: `0` todo aprobado, `1` algún fallo, `2` no se pudo empezar (falta de clave, sistema no levantado, etc.).
+Código de salida: `0` todo aprobado, `1` algún fallo, `2` no se pudo empezar (sistema no levantado, sin LLM real operativo, etc.).
 
 ## Requisitos
 
 1. **Sistema levantado:** `docker compose up -d --build --wait` (backend en `http://localhost:8080`, auditoría en `./var/auditoria/`).
-2. **`LLM_API_KEY` real en el entorno del proceso** que ejecuta los evals. Nunca se lee de `.env` ni se imprime; si falta, o parece ficticia (valor de ejemplo o de CI), el ejecutor se niega a empezar. El backend recibe la misma clave por su propia configuración (el `.env` que usa `docker compose`).
+2. **Clave real en el `.env` del stack:** el responsable configura la `LLM_API_KEY` real en el `.env` que usa `docker compose`; solo el backend la usa. El ejecutor no la necesita, no la lee y no la imprime. Antes de empezar envía una pregunta de comprobación (la de `ESC-BAN-01`) y, si responde 503 o con `tokens = 0`, termina con código 2 y el mensaje "el backend no tiene un LLM real operativo".
 3. .NET 10 SDK y `docker` en el `PATH`.
 
 ## Cómo se ejecuta
 
-Desde la raíz del repositorio (PowerShell o Git Bash), con la clave en el entorno:
+Desde la raíz del repositorio (PowerShell o Git Bash), con el sistema levantado:
 
 ```bash
-export LLM_API_KEY=<tu clave real>        # PowerShell: $env:LLM_API_KEY = "<tu clave real>"
 dotnet run --project evals/TutorFlow.Evals -c Release
 ```
 

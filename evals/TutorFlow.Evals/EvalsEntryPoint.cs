@@ -12,7 +12,6 @@ namespace TutorFlow.Evals;
 /// </summary>
 public static class EvalsEntryPoint
 {
-    private const string KeyVariable = "LLM_API_KEY";
 
     /// <summary>Runs the evals.</summary>
     /// <param name="args">Command line arguments (see <see cref="EvalOptions.Usage"/>).</param>
@@ -81,6 +80,16 @@ public static class EvalsEntryPoint
             new ScenarioChecker(GlobalCitationRules.Load(root)),
             new EvalRunOptions(runId, options.Delay, TimeSpan.FromSeconds(10)),
             message => Console.WriteLine(message));
+
+        var probeScenario = load.Scenarios.FirstOrDefault(s => s.Id == "ESC-BAN-01");
+        var probeProblem = probeScenario is null
+            ? "ESC-BAN-01 (probe question) was not found in escenarios/."
+            : await runner.ProbeAsync(probeScenario, cancellation.Token).ConfigureAwait(false);
+        if (probeProblem is not null)
+        {
+            Console.Error.WriteLine(probeProblem);
+            return 2;
+        }
 
         var results = (await runner.RunAsync(selected, cancellation.Token).ConfigureAwait(false)).ToList();
 
@@ -154,27 +163,13 @@ public static class EvalsEntryPoint
         return load.Errors.Count == 0 ? 0 : 1;
     }
 
-    // The real key must be in the environment of this process (never read from .env, never printed); a fake key means the run
-    // would not use the real LLM, so it is refused. The backend gets the same key from its own configuration (.env of compose).
+    // The key is only used by the backend (from the .env of docker compose); the evals never need or read it. Whether the stack
+    // really has an operational real LLM is checked with a probe question (see EvalRunner.ProbeAsync).
     private static string? CheckPrerequisites(EvalOptions options, string root)
     {
-        var key = Environment.GetEnvironmentVariable(KeyVariable);
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return $"{KeyVariable} is not set in the environment of this process. The evals use the real LLM: export the real key (it is never read from .env).";
-        }
-
-        if (key.Contains("ficticia", StringComparison.OrdinalIgnoreCase) || key.StartsWith("ci-", StringComparison.OrdinalIgnoreCase))
-        {
-            return $"{KeyVariable} looks like a fake key (example or CI value). The evals need the real one.";
-        }
-
         var audit = Path.GetFullPath(options.AuditFile, root);
-        if (!Directory.Exists(Path.GetDirectoryName(audit)))
-        {
-            return $"The audit directory does not exist: {Path.GetDirectoryName(audit)}. Start the system first: docker compose up -d --build --wait";
-        }
-
-        return null;
+        return Directory.Exists(Path.GetDirectoryName(audit))
+            ? null
+            : $"The audit directory does not exist: {Path.GetDirectoryName(audit)}. Start the system first: docker compose up -d --build --wait";
     }
 }

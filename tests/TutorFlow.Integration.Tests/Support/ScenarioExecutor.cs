@@ -48,11 +48,14 @@ public static class ScenarioExecutor
         var after = await SendAfterAsync(client, scenario);
         var records = host.Audit.FindAll(correlationId);
         JsonElement? record = null;
+
+        // R-LOG-01: every request to the assistant endpoint leaves exactly one record, same criterion as evals/.
+        // The log.* fields are only compared when the scenario sets them (ScenarioChecker).
         if (records.Count == 1)
         {
             record = JsonSerializer.SerializeToElement(records[0]);
         }
-        else if (scenario.Expected.TryGetProperty("log", out _) || records.Count > 1)
+        else
         {
             problems.Add($"R-LOG-01: expected exactly one audit record for the request but found {records.Count}.");
         }

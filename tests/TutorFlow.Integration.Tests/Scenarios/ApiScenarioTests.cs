@@ -43,6 +43,10 @@ public sealed class ApiScenarioTests(ITestOutputHelper output)
     [Fact]
     public async Task Known_defects_still_fail()
     {
+        // With an empty list there is nothing to run: assert the list itself is consistent instead of passing silently.
+        var apiIds = ScenarioData.ApiScenarios.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
+        Assert.All(KnownDefects.Ids, id => Assert.Contains(id, apiIds));
+        output.WriteLine($"Known defects listed: {KnownDefects.Ids.Count}.");
         foreach (var id in KnownDefects.Ids)
         {
             var script = ScenarioScripts.For(id);

@@ -130,6 +130,8 @@ public static class ScenarioScripts
         table["ESC-COO-11"] = ModelScript.Calls(Tool.ListStudents()).Answer("Estos son los estudiantes de tu programa.");
         table["ESC-COO-12"] = ModelScript.Direct("Como coordinador no tienes notas propias; puedo consultar los estudiantes de tu programa.");
         table["ESC-COO-13"] = ModelScript.Calls(Tool.Find("Laura")).Answer("El nombre es incompleto o ambiguo: indícame el ID del estudiante.");
+        // COO-16 and COO-19 do not use `rechazar` on purpose: the model asks for data outside the programs in charge and the
+        // tool authorization (R-SEG-03, R-SEG-06) answers the 403, with nothing queried.
         table["ESC-COO-16"] = ModelScript.Calls(Tool.ProgramSummary("ADM")).Answer("No puedo consultar ese programa.");
         table["ESC-COO-17"] = Refuse();
         table["ESC-COO-18"] = Refuse();
