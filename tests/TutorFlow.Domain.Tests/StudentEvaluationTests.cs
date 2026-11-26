@@ -109,6 +109,25 @@ public class StudentEvaluationTests
     }
 
     [Fact]
+    public void EST_005_Microeconomics_is_not_habilitable_because_the_grade_is_below_2_0_DUDA_42()
+    {
+        StudentEvaluation e = EvaluateStudent("EST-005");
+        CourseEvaluation micro = e.Courses.Single(c => c.Code == "MIC-102");
+        Assert.Equal(HabilitationStatus.NotEligible, micro.Habilitation);
+        Assert.Equal(NotHabilitableReason.GradeBelowMinimum, micro.NotHabilitableReason);
+        Assert.Equal(NotHabilitableReason.None, e.Courses.Single(c => c.Code == "EST-103").NotHabilitableReason);
+    }
+
+    [Fact]
+    public void EST_002_Databases_is_not_habilitable_because_it_was_lost_by_absences_DUDA_42()
+    {
+        StudentEvaluation e = EvaluateStudent("EST-002");
+        CourseEvaluation databases = e.Courses.Single(c => c.Code == "BD-203");
+        Assert.Equal(NotHabilitableReason.LostByAbsences, databases.NotHabilitableReason); // 3.8 from the cuts does not matter
+        Assert.Equal(NotHabilitableReason.None, e.Courses.Single(c => c.Code == "CAL-201").NotHabilitableReason);
+    }
+
+    [Fact]
     public void EST_006_course_without_final_grade_stays_out_of_the_average_and_the_scholarship_is_undetermined_CL_05_D_23()
     {
         StudentEvaluation e = EvaluateStudent("EST-006");
