@@ -74,9 +74,10 @@ public class ModelLoopTests
         Assert.Equal(1, h.Llm.CallCount);
     }
 
-    // The non-rejecting exit ends the turn: a data tool asked in the same turn is not run, so nothing is consulted.
+    // With an authorized call in the same turn, the answer is still the fixed 200 without data use, and the log keeps
+    // what was really consulted (R-RES-04, R-LOG-04).
     [Fact]
-    public async Task No_information_exit_does_not_run_the_other_calls_of_the_turn()
+    public async Task No_information_exit_with_an_authorized_call_is_200_and_logs_the_real_calls()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(
@@ -85,7 +86,44 @@ public class ModelLoopTests
 
         var answer = await h.AskStudentAsync("¿Y en Bases de Datos?");
 
+        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.Equal(AssistantTools.IncompleteText, answer.Text);
+        Assert.Empty(answer.Citations);
+        Assert.False(answer.UsedStudentData);
+        Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
+        Assert.Equal([AssistantTools.AcademicStatus, AssistantTools.NoInformation], h.Log.Tools);
+    }
+
+    // R-SEG-06, R-SEG-07, R-SEG-08, D-13: a deterministic denial in the same turn wins over the non-rejecting exit:
+    // a student asking for a program summary gets a 403 and no data is consulted.
+    [Fact]
+    public async Task Denied_call_wins_over_the_no_information_exit_for_a_student()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.OutOfScopeCase }),
+            FakeLlmReply.Call(AssistantTools.ProgramSummary));
+
+        var answer = await h.AskStudentAsync("¿Qué estudiantes de mi programa están en prueba académica?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+        Assert.Equal(AssistantAnswer.ForbiddenText, answer.Text);
+        Assert.Empty(h.StudentDataCalls);
+        Assert.Empty(h.Log.StudentsConsulted);
+    }
+
+    // R-SEG-03, R-SEG-06: the same holds for a coordinator asking for a student outside the programs in charge.
+    [Fact]
+    public async Task Denied_call_wins_over_the_no_information_exit_for_a_coordinator()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.OutOfScopeCase }),
+            FakeLlmReply.Call(AssistantTools.AcademicStatus, new { estudianteId = "EST-004" }));
+
+        var answer = await h.AskCoordinatorAsync("¿Cómo va EST-004?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
         Assert.Empty(h.StudentDataCalls);
         Assert.Empty(h.Log.StudentsConsulted);
     }

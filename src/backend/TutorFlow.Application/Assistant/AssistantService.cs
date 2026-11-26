@@ -187,23 +187,12 @@ public sealed partial class AssistantService : IAssistantService
             return AssistantAnswer.Forbidden(rejected.Reason!, tokens, cost);
         }
 
-        // R-RES-03, R-RES-07: the non-rejecting exit ends the request with a fixed 200 answer, no citations and no
-        // data; no other call of that turn is run, so nothing is consulted for an answer that does not use it.
+        // R-RES-03, R-RES-07: the non-rejecting exit is not a data tool. The other calls of the turn still go through
+        // the toolbox first, so a deterministic denial (R-SEG-06, R-SEG-07, D-13) always wins over its 200.
         var noInformation = response.ToolCalls.FirstOrDefault(c => c.Name == AssistantTools.NoInformation);
-        if (noInformation is not null)
-        {
-            _audit.RecordTool(noInformation.Name);
-            return AssistantAnswer.Answered(
-                AssistantToolbox.NoInformationAnswer(noInformation),
-                [],
-                usedStudentData: false,
-                tokens,
-                cost);
-        }
-
         messages.Add(LlmMessage.Model(response.Text, response.ToolCalls));
         var results = new List<LlmToolResult>(response.ToolCalls.Count);
-        foreach (var toolCall in response.ToolCalls)
+        foreach (var toolCall in response.ToolCalls.Where(c => c.Name != AssistantTools.NoInformation))
         {
             _audit.RecordTool(toolCall.Name);
             var execution = await _toolbox.ExecuteAsync(user, toolCall, state, cancellationToken).ConfigureAwait(false);
@@ -214,6 +203,19 @@ public sealed partial class AssistantService : IAssistantService
             }
 
             results.Add(new LlmToolResult(toolCall.Name, execution.Result, toolCall.Id));
+        }
+
+        if (noInformation is not null)
+        {
+            // Fixed 200 answer with no citations and no data used (R-RES-04); the log keeps every call really made
+            // in the turn (R-LOG-04).
+            _audit.RecordTool(noInformation.Name);
+            return AssistantAnswer.Answered(
+                AssistantToolbox.NoInformationAnswer(noInformation),
+                [],
+                usedStudentData: false,
+                tokens,
+                cost);
         }
 
         messages.Add(LlmMessage.Tool(results));
