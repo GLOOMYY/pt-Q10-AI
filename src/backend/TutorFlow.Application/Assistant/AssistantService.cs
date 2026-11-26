@@ -124,6 +124,7 @@ public sealed partial class AssistantService : IAssistantService
     {
         var instructions = SystemInstructions.Build(user);
         var tools = AssistantToolbox.DefinitionsFor(user);
+        var laterTools = AssistantToolbox.LaterDefinitionsFor(user);
         var exitTools = AssistantToolbox.ExitDefinitionsFor(user);
         var messages = new List<LlmMessage> { LlmMessage.User(question) };
         var state = new ToolRunState(question);
@@ -134,16 +135,21 @@ public sealed partial class AssistantService : IAssistantService
         {
             for (var call = 0; call < _options.MaxLlmCalls; call++)
             {
+                // R-RES-03, R-RES-07: `responder_sin_informacion` is only offered on the first call, before any tool
+                // result: it is meant for questions that need no tool. From the second call on, the model writes the
+                // answer itself with the results it has ("No encuentro esa información..." when there is none).
                 // DUDA-29: with a small limit, the last allowed call asks for the final answer instead of more tools,
-                // and offers no data tool nor buscar_reglamento (only the exits that read no data), so the model has to
-                // answer with the results it already has; that answer goes through the normal citation validation.
+                // and offers only `rechazar` (it reads no data, R-ARQ-04), so the model has to answer with the results
+                // it already has; that answer goes through the normal citation validation.
                 // A single allowed call keeps every tool: there are no results yet to answer with.
+                var isFirstCall = call == 0;
                 var isLastCall = call == _options.MaxLlmCalls - 1;
-                var finalCall = isLastCall && call > 0;
+                var finalCall = isLastCall && !isFirstCall;
                 var request = new LlmRequest(
-                    finalCall ? instructions + SystemInstructions.LastCall : instructions,
+                    isFirstCall ? instructions
+                        : instructions + (finalCall ? SystemInstructions.LastCall : SystemInstructions.LaterCall),
                     [.. messages],
-                    finalCall ? exitTools : tools,
+                    isFirstCall ? tools : finalCall ? exitTools : laterTools,
                     Temperature,
                     ModelAnswer.Schema);
                 var response = await _llm.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
@@ -158,17 +164,17 @@ public sealed partial class AssistantService : IAssistantService
                 }
 
                 // DUDA-29: on the last allowed call no later call could use a tool result, so a turn that still asks for
-                // tools (other than the exits `rechazar` and `responder_sin_informacion`), even ones that were not
-                // offered, is not run: no API call and nothing logged as consulted. The request ends with the 503 of an
-                // exhausted loop.
+                // tools other than `rechazar` (and `responder_sin_informacion` when it was offered, i.e. a single
+                // allowed call), even ones that were not offered, is not run: no API call and nothing logged as
+                // consulted. The request ends with the 503 of an exhausted loop.
                 if (isLastCall
                     && response.ToolCalls.All(c => c.Name != AssistantTools.Reject)
-                    && response.ToolCalls.Any(c => c.Name != AssistantTools.NoInformation))
+                    && response.ToolCalls.Any(c => !isFirstCall || c.Name != AssistantTools.NoInformation))
                 {
                     break;
                 }
 
-                var outcome = await RunToolsAsync(user, response, messages, state, !isLastCall, tokens, cost, cancellationToken)
+                var outcome = await RunToolsAsync(user, response, messages, state, isFirstCall, tokens, cost, cancellationToken)
                     .ConfigureAwait(false);
                 if (outcome is not null)
                 {
@@ -189,27 +195,27 @@ public sealed partial class AssistantService : IAssistantService
 
     /// <summary>
     /// Runs the tool calls of one model turn. Returns a final answer when the turn ends the request (<c>rechazar</c> or a
-    /// request for non-authorized data, both 403; <c>responder_sin_informacion</c>, 200), or <see langword="null"/> to
-    /// continue the loop.
+    /// request for non-authorized data, both 403; <c>responder_sin_informacion</c> on the first call, 200), or
+    /// <see langword="null"/> to continue the loop. Never called on the last allowed call after the first one (the
+    /// loop stops a turn that asks for anything but <c>rechazar</c> there).
     /// </summary>
     /// <remarks>
-    /// ESC-RAR-19, R-RES-04: when <c>responder_sin_informacion</c> ("fuera de los documentos") comes after the model
-    /// already read academic data in a previous turn, the model is asked once to answer with those data (e.g. "no tienes
-    /// esa asignatura") instead of the generic "no information" answer, provided another call is still allowed
-    /// (<paramref name="canContinue"/>). The other cases (incomplete or unreadable question) always end the request.
+    /// ESC-COO-08, ESC-COO-09, ESC-INY-13, ESC-INY-14, ESC-INY-16: after the first call
+    /// (<paramref name="noInformationOffered"/> is <see langword="false"/>) <c>responder_sin_informacion</c> is not
+    /// offered. If the model calls it anyway it is treated like any non-offered tool: it is not run nor logged, and the
+    /// model is asked once to write the answer with the results it already has; a second time, the request ends with a
+    /// 503 (never an answer the model did not write).
     /// </remarks>
     private async Task<AssistantAnswer?> RunToolsAsync(
         SessionUser user,
         LlmResponse response,
         List<LlmMessage> messages,
         ToolRunState state,
-        bool canContinue,
+        bool noInformationOffered,
         int tokens,
         decimal cost,
         CancellationToken cancellationToken)
     {
-        var usedDataBefore = state.UsedStudentData;
-
         // R-ARQ-04, D-32: a turn that calls `rechazar` ends the request; no other call of that turn is run.
         var reject = response.ToolCalls.FirstOrDefault(c => c.Name == AssistantTools.Reject);
         if (reject is not null)
@@ -237,16 +243,18 @@ public sealed partial class AssistantService : IAssistantService
             results.Add(new LlmToolResult(toolCall.Name, execution.Result, toolCall.Id));
         }
 
-        if (noInformation is not null
-            && usedDataBefore
-            && canContinue
-            && !state.NoInformationReconsidered
-            && AssistantToolbox.NoInformationAnswer(noInformation) == CitationValidator.NoInformationText)
+        if (noInformation is not null && !noInformationOffered)
         {
-            // The data the turn produced are answered too, so the model sees them before it decides again.
-            _audit.RecordTool(noInformation.Name);
-            state.NoInformationReconsidered = true;
-            results.Add(new LlmToolResult(noInformation.Name, AssistantToolbox.ReconsiderNoInformation(), noInformation.Id));
+            if (state.AnswerRequested)
+            {
+                LogNoInformationRepeated(_logger);
+                return AssistantAnswer.Unavailable(tokens, cost);
+            }
+
+            // Not run nor logged (R-LOG-04: nothing was consulted). The results of the other calls of the turn are
+            // answered too, so the model sees them before it writes the answer.
+            state.AnswerRequested = true;
+            results.Add(new LlmToolResult(noInformation.Name, AssistantToolbox.WriteTheAnswer(), noInformation.Id));
             messages.Add(LlmMessage.Tool(results));
             return null;
         }
@@ -287,6 +295,9 @@ public sealed partial class AssistantService : IAssistantService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The model did not give a final answer within {MaxCalls} calls.")]
     private static partial void LogToolLoopExhausted(ILogger logger, int maxCalls);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The model called the non-offered no-information exit again instead of answering.")]
+    private static partial void LogNoInformationRepeated(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The model returned an empty final answer.")]
     private static partial void LogEmptyAnswer(ILogger logger);
