@@ -177,6 +177,52 @@ public class StudentToolsTests
         Assert.StartsWith("no determinable", Text(report, "perdidaDeCupo"), StringComparison.Ordinal);
     }
 
+    // ESC-EST-02, ESC-EST-03, ESC-BAN-03, R-RES-02: the conclusions carry the figures and the rule that support them.
+    [Fact]
+    public async Task Conclusions_carry_their_figures_and_rules()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Puedes habilitar Cálculo Integral (2.6).", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Qué materias puedo habilitar?", "EST-002");
+
+        var report = h.ToolResult();
+        var habilitation = report.GetProperty("habilitacion");
+        var habilitable = Assert.Single(habilitation.GetProperty("habilitables").EnumerateArray());
+        Assert.Equal("Cálculo Integral", Text(habilitable, "asignatura"));
+        Assert.Equal("2.6", Text(habilitable, "definitiva"));
+        var databases = Assert.Single(habilitation.GetProperty("perdidasNoHabilitables").EnumerateArray());
+        Assert.Equal("Bases de Datos", Text(databases, "asignatura"));
+        Assert.Contains("Artículo 7", Text(databases, "motivo"), StringComparison.Ordinal);
+        Assert.Equal(
+            ["Artículo 6", "Artículo 7"],
+            habilitation.GetProperty("reglasACitar").EnumerateArray().Select(c => Text(c, "seccion")));
+
+        var probation = report.GetProperty("pruebaAcademica");
+        Assert.Contains("2.28", Text(probation, "detalle"), StringComparison.Ordinal);
+        Assert.Equal("Artículo 20", Text(probation.GetProperty("reglaACitar"), "seccion"));
+        Assert.Equal("Sección 3.1", Text(report.GetProperty("becaRendimiento").GetProperty("reglaACitar"), "seccion"));
+        Assert.Equal(
+            "9 de 48 clases programadas (18.75 %)",
+            Text(Course(report, "BD-203").GetProperty("asistencia"), "resumen"));
+    }
+
+    // ESC-SIM-08, R-RES-02: the simulation summary shows the accumulated grade it starts from.
+    [Fact]
+    public async Task Simulation_summary_shows_the_accumulated_grade()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SimulateRequiredGrade, new { asignatura = "Estadística" }))
+            .EnqueueText(AssistantHarness.Final("Necesitas 1.4.", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Cuánto necesito en el corte 3 de Estadística para pasar?", "EST-006");
+
+        var summary = Text(h.ToolResult(), "resumen");
+        Assert.Contains("2.40", summary, StringComparison.Ordinal);
+        Assert.Contains("1.4", summary, StringComparison.Ordinal);
+    }
+
     // ESC-EST-08, CL-26, R-CAL-10: provisional average 4.11, 3.34 if Inglés III was lost by absences.
     [Fact]
     public async Task Provisional_average_reports_its_alternative()

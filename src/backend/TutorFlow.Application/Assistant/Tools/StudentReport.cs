@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using TutorFlow.Application.Ports.AcademicApi;
 using TutorFlow.Domain.Attendance;
 using TutorFlow.Domain.Evaluation;
+using TutorFlow.Domain.Grading;
 using TutorFlow.Domain.Rules;
 
 namespace TutorFlow.Application.Assistant.Tools;
@@ -16,6 +17,9 @@ public static class StudentReport
 {
     /// <summary>Text for a value that does not exist in the data (API-10: <c>null</c> is "no data", never 0).</summary>
     public const string NoData = "sin dato";
+
+    private const string Regulation = "reglamento_academico_2025.md";
+    private const string Welfare = "bienestar_y_becas.md";
 
     /// <summary>
     /// Joins grade and attendance rows by course code, never by name (API-09). A row without its counterpart is kept
@@ -88,18 +92,20 @@ public static class StudentReport
             },
             ["asignaturas"] = courses,
             ["asignaturasPerdidas"] = LostCourses(evaluation.LostCourses),
-            ["asignaturasHabilitables"] = Names(evaluation.HabilitableCourses),
+            ["habilitacion"] = Habilitation(evaluation),
             ["creditosMatriculados"] = evaluation.EnrolledCredits,
             ["promedioPeriodo"] = Average(evaluation),
             ["pruebaAcademica"] = new JsonObject
             {
                 ["resultado"] = evaluation.Probation switch
                 {
-                    ProbationStatus.InProbation => "sí: promedio del periodo menor que 3.0",
+                    ProbationStatus.InProbation => $"sí: promedio del periodo menor que {NumberFormat.Grade(StudentEvaluator.ProbationThreshold)}",
                     ProbationStatus.NotInProbation => "no",
                     _ => "no determinable",
                 },
+                ["detalle"] = $"promedio ponderado del periodo: {AverageText(evaluation)}; queda en prueba académica con un promedio menor que {NumberFormat.Grade(StudentEvaluator.ProbationThreshold)}",
                 ["provisional"] = provisional && evaluation.Probation != ProbationStatus.Undetermined,
+                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 20"),
             },
             ["perdidaDeCupo"] = "no determinable: requiere dos periodos consecutivos en prueba académica y solo hay datos del periodo actual",
             ["becaRendimiento"] = new JsonObject
@@ -110,7 +116,105 @@ public static class StudentReport
                     ScholarshipStatus.NotEligible => "no cumple los requisitos",
                     _ => "no determinable todavía",
                 },
+                ["detalle"] = ScholarshipDetail(evaluation),
                 ["provisional"] = provisional && evaluation.Scholarship != ScholarshipStatus.Undetermined,
+                ["reglaACitar"] = RuleCitation(Welfare, "Sección 3.1"),
+            },
+        };
+    }
+
+    /// <summary>
+    /// Deterministic conclusions of a whole program for a coordinator (R-CAL-08, R-BEC-01, R-ASI-01, R-ASI-03): who is
+    /// in each situation, with the figure that supports it and the rule to cite, so the answer can name every student.
+    /// Only students already authorized and loaded by the caller are included (R-SEG-03).
+    /// </summary>
+    /// <param name="students">Each authorized student with the evaluation and the attendance rows.</param>
+    /// <returns>The JSON object with one entry per situation.</returns>
+    public static JsonObject ProgramConclusions(
+        IEnumerable<(StudentRecord Student, StudentEvaluation Evaluation, IReadOnlyList<AttendanceRecord>? Attendance)> students)
+    {
+        ArgumentNullException.ThrowIfNull(students);
+        var inProbation = new JsonArray();
+        var probationUndetermined = new JsonArray();
+        var scholarship = new JsonArray();
+        var scholarshipUndetermined = new JsonArray();
+        var lost = new JsonArray();
+        var lostByAbsences = new JsonArray();
+        var absencesUndetermined = new JsonArray();
+
+        foreach (var (student, evaluation, attendance) in students)
+        {
+            if (evaluation.Probation == ProbationStatus.InProbation)
+            {
+                inProbation.Add(StudentLine(student, "promedio", AverageText(evaluation)));
+            }
+            else if (evaluation.Probation == ProbationStatus.Undetermined)
+            {
+                probationUndetermined.Add(StudentLine(student, "promedio", AverageText(evaluation)));
+            }
+
+            if (evaluation.Scholarship == ScholarshipStatus.Eligible)
+            {
+                scholarship.Add(StudentLine(student, "detalle", ScholarshipDetail(evaluation)));
+            }
+            else if (evaluation.Scholarship == ScholarshipStatus.Undetermined)
+            {
+                scholarshipUndetermined.Add(StudentLine(student, "detalle", ScholarshipDetail(evaluation)));
+            }
+
+            var lostCourses = evaluation.LostCourses.ToList();
+            if (lostCourses.Count > 0)
+            {
+                var line = StudentLine(student, null, null);
+                line["asignaturas"] = LostCourses(lostCourses);
+                lost.Add(line);
+            }
+
+            var byAbsences = evaluation.Courses.Where(c => c.Absences == AbsenceStatus.Lost).ToList();
+            if (byAbsences.Count > 0)
+            {
+                var line = StudentLine(student, null, null);
+                line["asignaturas"] = new JsonArray([.. byAbsences.Select(c => (JsonNode)new JsonObject
+                {
+                    ["asignatura"] = c.Name,
+                    ["inasistencias"] = AbsenceSummary(RowOf(attendance, c.Code)),
+                })]);
+                lostByAbsences.Add(line);
+            }
+
+            var unknown = evaluation.Courses.Where(c => c.IsConsistent && c.Absences == AbsenceStatus.Unknown).ToList();
+            if (unknown.Count > 0)
+            {
+                var line = StudentLine(student, null, null);
+                line["asignaturasSinDatoDeInasistencias"] = Names(unknown);
+                absencesUndetermined.Add(line);
+            }
+        }
+
+        return new JsonObject
+        {
+            ["pruebaAcademica"] = new JsonObject
+            {
+                ["enPruebaAcademica"] = inProbation,
+                ["noDeterminable"] = probationUndetermined,
+                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 20"),
+            },
+            ["becaRendimiento"] = new JsonObject
+            {
+                ["cumplenLosRequisitos"] = scholarship,
+                ["noDeterminableTodavia"] = scholarshipUndetermined,
+                ["reglaACitar"] = RuleCitation(Welfare, "Sección 3.1"),
+            },
+            ["asignaturasPerdidas"] = new JsonObject
+            {
+                ["estudiantes"] = lost,
+                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 5"),
+            },
+            ["perdidaPorInasistencia"] = new JsonObject
+            {
+                ["perdieronPorInasistencia"] = lostByAbsences,
+                ["noDeterminableSinDatoDeInasistencias"] = absencesUndetermined,
+                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 11"),
             },
         };
     }
@@ -164,9 +268,87 @@ public static class StudentReport
             ["definitiva"] = c.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData,
             ["motivo"] = c.Outcome == CourseOutcome.LostByAbsences
                 ? "perdida por inasistencia (definitiva 0.0)"
-                : "definitiva menor que 3.0",
+                : $"definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)}",
         }),
     ];
+
+    /// <summary>
+    /// Habilitation of the period (R-HAB-01, R-HAB-02): the habilitable courses with the final grade that makes them so,
+    /// and the lost courses that are not, with the reason and the rule to cite (Art. 6, and Art. 7 when one is not).
+    /// </summary>
+    private static JsonObject Habilitation(StudentEvaluation evaluation)
+    {
+        var habilitable = new JsonArray();
+        var notHabilitable = new JsonArray();
+        foreach (var course in evaluation.LostCourses)
+        {
+            var grade = course.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData;
+            if (course.Habilitation == HabilitationStatus.Eligible)
+            {
+                habilitable.Add(new JsonObject { ["asignatura"] = course.Name, ["definitiva"] = grade });
+            }
+            else
+            {
+                notHabilitable.Add(new JsonObject
+                {
+                    ["asignatura"] = course.Name,
+                    ["definitiva"] = grade,
+                    // Domain gives the status, not the reason: only the loss by absences (a domain outcome) is
+                    // named; any other case is worded neutrally so that it is never false (R-HAB-01, R-HAB-02).
+                    ["motivo"] = course.Habilitation == HabilitationStatus.Undetermined
+                        ? "no determinable"
+                        : course.Outcome == CourseOutcome.LostByAbsences
+                            ? "perdida por inasistencia: no es habilitable (Artículo 7)"
+                            : "no cumple las condiciones de habilitación de los Artículos 6 y 7",
+                });
+            }
+        }
+
+        var rules = new JsonArray { RuleCitation(Regulation, "Artículo 6") };
+        if (notHabilitable.Count > 0)
+        {
+            rules.Add(RuleCitation(Regulation, "Artículo 7"));
+        }
+
+        return new JsonObject
+        {
+            ["habilitables"] = habilitable,
+            ["perdidasNoHabilitables"] = notHabilitable,
+            ["reglasACitar"] = rules,
+        };
+    }
+
+    private static string AverageText(StudentEvaluation evaluation) => evaluation.Average is { } average
+        ? NumberFormat.Average(average.Value) + (average.IsProvisional ? " (provisional)" : string.Empty)
+        : "sin promedio en el periodo";
+
+    private static string ScholarshipDetail(StudentEvaluation evaluation) =>
+        $"promedio ponderado del periodo: {AverageText(evaluation)} (se requiere {NumberFormat.Grade(StudentEvaluator.ScholarshipMinimumAverage)} o más); "
+        + $"asignaturas perdidas: {evaluation.LostCourses.Count()} (se requiere ninguna); "
+        + $"créditos matriculados: {evaluation.EnrolledCredits.ToString(CultureInfo.InvariantCulture)} (se requieren al menos {StudentEvaluator.ScholarshipMinimumCredits.ToString(CultureInfo.InvariantCulture)}); "
+        + $"asignaturas sin definitiva: {evaluation.Courses.Count(c => c.Outcome == CourseOutcome.NoFinalGrade)}";
+
+    private static JsonObject StudentLine(StudentRecord student, string? field, string? value)
+    {
+        var json = new JsonObject { ["id"] = student.Id, ["nombre"] = student.Name };
+        if (field is not null)
+        {
+            json[field] = value;
+        }
+
+        return json;
+    }
+
+    private static AttendanceRecord? RowOf(IReadOnlyList<AttendanceRecord>? attendance, string code) =>
+        attendance?.FirstOrDefault(a => string.Equals(a.CourseCode, code, StringComparison.Ordinal));
+
+    private static string AbsenceSummary(AttendanceRecord? row) =>
+        row is { ScheduledClasses: { } scheduled, Absences: { } absences } && scheduled > 0
+            ? $"{absences} de {scheduled} clases programadas ({NumberFormat.Percent(absences * 100m / scheduled)})"
+            : NoData;
+
+    private static JsonObject RuleCitation(string document, string section) =>
+        new() { ["documento"] = document, ["seccion"] = section };
 
     private static JsonObject Course(CourseEvaluation course, AttendanceRecord? row)
     {
@@ -204,7 +386,7 @@ public static class StudentReport
         {
             CourseOutcome.Passed => "aprobada",
             CourseOutcome.PassUndetermined => "aprobada por nota, pero la pérdida por inasistencia no es determinable (sin dato de inasistencias)",
-            CourseOutcome.Failed => "perdida (definitiva menor que 3.0)",
+            CourseOutcome.Failed => $"perdida (definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)})",
             CourseOutcome.LostByAbsences => "perdida por inasistencia (definitiva 0.0, sin importar las notas de los cortes)",
             CourseOutcome.NoFinalGrade => "sin definitiva: no cuenta como aprobada ni como perdida y no entra en el promedio",
             _ => "dato inconsistente",
@@ -235,6 +417,7 @@ public static class StudentReport
         {
             json["inasistencias"] = absences;
             json["porcentajeInasistencia"] = NumberFormat.Percent(absences * 100m / scheduled);
+            json["resumen"] = AbsenceSummary(row);
         }
         else
         {

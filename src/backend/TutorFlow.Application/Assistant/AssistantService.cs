@@ -166,7 +166,8 @@ public sealed partial class AssistantService : IAssistantService
 
     /// <summary>
     /// Runs the tool calls of one model turn. Returns a final answer when the turn ends the request (<c>rechazar</c> or a
-    /// request for non-authorized data, both 403), or <see langword="null"/> to continue the loop.
+    /// request for non-authorized data, both 403; <c>responder_sin_informacion</c>, 200), or <see langword="null"/> to
+    /// continue the loop.
     /// </summary>
     private async Task<AssistantAnswer?> RunToolsAsync(
         SessionUser user,
@@ -186,9 +187,12 @@ public sealed partial class AssistantService : IAssistantService
             return AssistantAnswer.Forbidden(rejected.Reason!, tokens, cost);
         }
 
+        // R-RES-03, R-RES-07: the non-rejecting exit is not a data tool. The other calls of the turn still go through
+        // the toolbox first, so a deterministic denial (R-SEG-06, R-SEG-07, D-13) always wins over its 200.
+        var noInformation = response.ToolCalls.FirstOrDefault(c => c.Name == AssistantTools.NoInformation);
         messages.Add(LlmMessage.Model(response.Text, response.ToolCalls));
         var results = new List<LlmToolResult>(response.ToolCalls.Count);
-        foreach (var toolCall in response.ToolCalls)
+        foreach (var toolCall in response.ToolCalls.Where(c => c.Name != AssistantTools.NoInformation))
         {
             _audit.RecordTool(toolCall.Name);
             var execution = await _toolbox.ExecuteAsync(user, toolCall, state, cancellationToken).ConfigureAwait(false);
@@ -199,6 +203,19 @@ public sealed partial class AssistantService : IAssistantService
             }
 
             results.Add(new LlmToolResult(toolCall.Name, execution.Result, toolCall.Id));
+        }
+
+        if (noInformation is not null)
+        {
+            // Fixed 200 answer with no citations and no data used (R-RES-04); the log keeps every call really made
+            // in the turn (R-LOG-04).
+            _audit.RecordTool(noInformation.Name);
+            return AssistantAnswer.Answered(
+                AssistantToolbox.NoInformationAnswer(noInformation),
+                [],
+                usedStudentData: false,
+                tokens,
+                cost);
         }
 
         messages.Add(LlmMessage.Tool(results));

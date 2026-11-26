@@ -50,6 +50,100 @@ public class ModelLoopTests
         Assert.Equal(AuditReasons.ThirdPartyData, answer.Reason);
     }
 
+    // R-RES-03, R-RES-07, ESC-ABU-02, ESC-ABU-03, ESC-ABU-06, ESC-INY-04, ESC-ENT-06: the non-rejecting exit is a 200
+    // with a fixed text, no citations and no data; the call is counted.
+    [Theory]
+    [InlineData(AssistantTools.OutOfScopeCase, CitationValidator.NoInformationText)]
+    [InlineData(AssistantTools.IncompleteCase, AssistantTools.IncompleteText)]
+    [InlineData(AssistantTools.UnreadableCase, AssistantTools.UnreadableText)]
+    [InlineData("otro caso", CitationValidator.NoInformationText)]
+    public async Task No_information_exit_is_200_with_a_fixed_text(string noInformationCase, string expected)
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = noInformationCase }));
+
+        var answer = await h.AskStudentAsync("¿Quién ganó el último mundial de fútbol?");
+
+        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
+        Assert.Equal(expected, answer.Text);
+        Assert.Empty(answer.Citations);
+        Assert.False(answer.UsedStudentData);
+        Assert.Null(answer.Reason);
+        Assert.Equal(FakeLlmReply.DefaultPromptTokens + FakeLlmReply.DefaultCandidatesTokens, answer.Tokens);
+        Assert.Equal([AssistantTools.NoInformation], h.Log.Tools);
+        Assert.Equal(1, h.Llm.CallCount);
+    }
+
+    // With an authorized call in the same turn, the answer is still the fixed 200 without data use, and the log keeps
+    // what was really consulted (R-RES-04, R-LOG-04).
+    [Fact]
+    public async Task No_information_exit_with_an_authorized_call_is_200_and_logs_the_real_calls()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.IncompleteCase }),
+            FakeLlmReply.Call(AssistantTools.AcademicStatus));
+
+        var answer = await h.AskStudentAsync("¿Y en Bases de Datos?");
+
+        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
+        Assert.Equal(AssistantTools.IncompleteText, answer.Text);
+        Assert.Empty(answer.Citations);
+        Assert.False(answer.UsedStudentData);
+        Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
+        Assert.Equal([AssistantTools.AcademicStatus, AssistantTools.NoInformation], h.Log.Tools);
+    }
+
+    // R-SEG-06, R-SEG-07, R-SEG-08, D-13: a deterministic denial in the same turn wins over the non-rejecting exit:
+    // a student asking for a program summary gets a 403 and no data is consulted.
+    [Fact]
+    public async Task Denied_call_wins_over_the_no_information_exit_for_a_student()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.OutOfScopeCase }),
+            FakeLlmReply.Call(AssistantTools.ProgramSummary));
+
+        var answer = await h.AskStudentAsync("¿Qué estudiantes de mi programa están en prueba académica?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+        Assert.Equal(AssistantAnswer.ForbiddenText, answer.Text);
+        Assert.Empty(h.StudentDataCalls);
+        Assert.Empty(h.Log.StudentsConsulted);
+    }
+
+    // R-SEG-03, R-SEG-06: the same holds for a coordinator asking for a student outside the programs in charge.
+    [Fact]
+    public async Task Denied_call_wins_over_the_no_information_exit_for_a_coordinator()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.OutOfScopeCase }),
+            FakeLlmReply.Call(AssistantTools.AcademicStatus, new { estudianteId = "EST-004" }));
+
+        var answer = await h.AskCoordinatorAsync("¿Cómo va EST-004?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+        Assert.Empty(h.StudentDataCalls);
+        Assert.Empty(h.Log.StudentsConsulted);
+    }
+
+    // R-ARQ-04: `rechazar` wins over the non-rejecting exit in the same turn: security is never relaxed.
+    [Fact]
+    public async Task Reject_wins_over_the_no_information_exit()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(
+            FakeLlmReply.Call(AssistantTools.Reject, new { motivo = AuditReasons.ThirdPartyData }),
+            FakeLlmReply.Call(AssistantTools.NoInformation, new { caso = AssistantTools.OutOfScopeCase }));
+
+        var answer = await h.AskStudentAsync("¿Quién es mi coordinador?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+        Assert.Equal(AuditReasons.ThirdPartyData, answer.Reason);
+        Assert.Equal([AssistantTools.Reject], h.Log.Tools);
+    }
+
     // D-32, R-LOG-04: if the model consulted data before rejecting, the log keeps what was really consulted.
     [Fact]
     public async Task Reject_after_a_data_tool_keeps_the_real_consultations()
