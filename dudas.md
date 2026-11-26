@@ -444,4 +444,88 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con el sistema levantado con `docker compose` y la clave del `.env` del responsable, la primera pregunta documental respondió bien (200, cita del Artículo 5, 4 936 tokens). Las siguientes peticiones reciben de Gemini `HTTP 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.` o agotan el timeout de 30 s. El backend responde correctamente 503 sin inventar datos, pero así `evals/` daría fallos falsos en casi todos los escenarios.
 - **Qué quedó pendiente:** ejecutar `evals/` con el LLM real (F5).
 - **Propuesta:** reintentar cuando el proveedor se normalice (el orquestador deja un sondeo periódico). Si persiste, el responsable puede valorar otro `LLM_MODEL` en su `.env` (sin cambiar el SPEC) o ejecutar F5 en otro momento.
-- **Respuesta:** _(pendiente)_
+- **Respuesta:** _(pendiente; continúa en DUDA-43)_
+
+## DUDA-38 · Ejecución de `evals/` cortada por memoria del equipo
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** integracion / — (F5)
+- **Referencia:** F5, R-QA-01
+- **Tipo:** atasco (1 intento)
+- **Bloqueante:** no
+- **Descripción:** la primera ejecución completa de `evals/` (unos 140 escenarios enviados) fue detenida por el entorno con "the system is running low on memory" antes de escribir el informe. El equipo tenía 2,2 GB libres de 15,9 GB (WSL de Docker con unos 2,9 GB).
+- **Qué quedó pendiente:** nada; el orquestador relanzó F5 por tandas (un archivo de escenarios por ejecución, `--file`) tras cerrar el servidor de compilación de .NET.
+- **Propuesta:** en el equipo del responsable, ejecutar `evals/` por tandas o con más memoria libre.
+- **Respuesta:** _Resuelta por el orquestador: ejecución por tandas._
+
+## DUDA-39 · Reintento de errores transitorios del proveedor del LLM
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / conocimiento/f5
+- **Referencia:** R-QA-04, §5.0, CL-23, DUDA-37
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** en F5, Gemini devuelve a menudo `HTTP 503` ("high demand") en una de las llamadas de una pregunta, y la pregunta entera termina en 503. El SPEC exige 503 cuando el LLM no responde y un timeout de 30 s, pero no dice si se puede reintentar.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** reintentar solo errores transitorios del proveedor (500/502/503/504), pocas veces y con backoff corto, sin superar los 30 s por llamada; nunca 429 (cuota, CL-23).
+- **Respuesta:** _Resuelta por el orquestador de forma provisional aplicando la propuesta; el responsable puede confirmarla o pedir que se retire._
+
+## DUDA-40 · Posible prueba intermitente en `TutorFlow.Integration.Tests`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** conocimiento / conocimiento/f5 (PR #25)
+- **Referencia:** AGENTS §8 (las pruebas no dependen del orden ni de la red)
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el hook `pre-commit` falló una vez en 1 de las 197 pruebas de integración y pasó al repetirlo. El orquestador ejecutó la suite 3 veces sobre `main` (197/197 en las tres) sin reproducirlo. El equipo estaba con poca memoria en ese momento (DUDA-38).
+- **Qué quedó pendiente:** identificar la prueba si vuelve a fallar.
+- **Propuesta:** si reaparece, asignar a integracion su diagnóstico con el nombre exacto de la prueba y el error; no se marca ni se salta ninguna prueba.
+- **Respuesta:** _(en observación)_
+
+## DUDA-41 · ESC-INY-04: Output esperado 200 frente a la nota "si se detecta, 403"
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f5 (PR #26)
+- **Referencia:** ESC-INY-04, escenarios/README §4 (solo se comprueba lo que aparece en el Output esperado)
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el Output esperado de ESC-INY-04 exige `"status": 200`, pero sus Notas dicen "Si se detecta, 403". Se implementó 200: el texto codificado no se decodifica ni se ejecuta y no se fuga nada.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantener 200, porque el README dice que se comprueba el Output esperado; el responsable puede aclarar la nota del escenario.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-42 · Motivo de "no habilitable" no expuesto por Domain
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f5b (PR #27)
+- **Referencia:** R-HAB-01, R-HAB-02, DUDA-22
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** `HabilitationStatus.NotEligible` no dice por qué una asignatura no es habilitable (definitiva < 2.0, pérdida por inasistencia o tipo de asignatura). Application usa un texto neutro salvo para la pérdida por inasistencia, que Domain sí indica.
+- **Qué quedó pendiente:** exponer el motivo desde Domain.
+- **Propuesta:** dominio añade el motivo al resultado de habilitación en una tarea posterior; con los datos actuales no cambia ninguna respuesta.
+- **Respuesta:** _Resuelta: Domain expone `CourseEvaluation.NotHabilitableReason` (PR #28) y Application lo usa para explicar el motivo (PR #29)._
+
+## DUDA-43 · F5 detenida: memoria del equipo y saturación de Gemini
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / —
+- **Referencia:** F5, R-QA-01, DUDA-37, DUDA-38
+- **Tipo:** atasco (3 intentos)
+- **Bloqueante:** sí
+- **Descripción:** se hicieron tres pasadas de `evals/` con el LLM real. Las dos primeras terminaron; la tercera se cortó tras banco, estudiante y coordinador porque Claude Code detuvo el proceso en segundo plano por memoria crítica del equipo ("the system is running low on memory") y pide no relanzarlo sin autorización. Además, en todas las pasadas una parte grande de los escenarios recibió 503 de Gemini ("This model is currently experiencing high demand") pese a los reintentos (PR #25). El stack de `docker compose` quedó detenido (`docker compose stop`) para liberar memoria; `var/auditoria` y los informes de `var/evals/` se conservan.
+- **Qué quedó pendiente:** una pasada completa y limpia de `evals/` (sin 503 del proveedor) tras la última ronda de correcciones de nucleo.
+- **Propuesta:** el responsable libera memoria (o arranca Claude Code con `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`) y relanza: `docker compose up -d --build --wait` y luego `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios, en un momento de menor demanda de Gemini o con otro `LLM_MODEL` en su `.env`.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-44 · Citas que el backend completa de forma determinista
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo y revisor / nucleo/f5c (PR #29)
+- **Referencia:** R-ARQ-03, R-FUE-02, R-RES-01, R-RES-02, ESC-BAN-04, ESC-COO-01
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** para ESC-BAN-04 y ESC-COO-01 el backend añade, validándolas con el índice, la cita de Evaluación Sección 2 cuando la respuesta cita la Sección 3 y menciona los pesos de los cortes, y la del Artículo 11 cuando los datos consultados tienen una pérdida por inasistencia y la respuesta la menciona. La segunda regla busca la palabra en toda la respuesta, así que podría añadir el Artículo 11 cuando la respuesta habla de inasistencia de otra asignatura o de otro estudiante del programa. Queda sin resolver la cita sobrante del Artículo 11 que el modelo propone a veces en ESC-BAN-04 (el fragmento sí se recupera).
+- **Qué quedó pendiente:** confirmar el criterio y, si persiste en ESC-BAN-04, mejorar la ordenación de la búsqueda (conocimiento).
+- **Propuesta:** mantener las reglas (cada cita añadida existe y se valida); afinar la del Artículo 11 a la asignatura perdida si los evals muestran falsos positivos.
+- **Respuesta:** _(pendiente del responsable)_
