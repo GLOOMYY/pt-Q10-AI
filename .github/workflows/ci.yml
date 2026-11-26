@@ -71,9 +71,10 @@ jobs:
           for sha in $COMMITS; do
             subject=$(git log -1 --format=%s "$sha")
             echo "Checking $sha: $subject"
-            # The message is validated exactly as git stores it (no line is removed here).
+            # --strict: the message is validated exactly as git stores it. Lines starting with '#'
+            # are kept (the local hook drops them), and the trailer must be the last non-blank line.
             git log -1 --format=%B "$sha" > "$RUNNER_TEMP/commit-msg.txt"
-            if ! sh .githooks/commit-msg "$RUNNER_TEMP/commit-msg.txt"; then
+            if ! sh .githooks/commit-msg --strict "$RUNNER_TEMP/commit-msg.txt"; then
               echo "::error::Commit $sha does not follow the format of AGENTS §9.2: $subject"
               status=1
             fi
