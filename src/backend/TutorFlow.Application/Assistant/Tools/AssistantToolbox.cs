@@ -440,7 +440,8 @@ public sealed class AssistantToolbox
         }
 
         // R-SEG-12, D-21: a first name or surname alone, several matches, or a name the question itself does not give
-        // in full, is ambiguous: never pick one (the data tools refuse it too, see IsIdentifiedByQuestionAsync).
+        // in full, is ambiguous: never pick one (the data tools refuse it too, see IsIdentifiedByQuestionAsync, which
+        // documents the known limit: each word is looked for separately, not the name in a row).
         var question = TextNormalizer.Words(state.Question);
         var ambiguous = words.Count < 2
             || matches.Count > 1
@@ -543,6 +544,11 @@ public sealed class AssistantToolbox
     /// Whether the question of a coordinator identifies the student: it gives the student's id, or every word of the
     /// student's full name and no other student of the programs in charge has that same name (R-SEG-12, D-21).
     /// </summary>
+    /// <remarks>
+    /// Known limit: the check looks for each word of the name anywhere in the question, not for the name written in a
+    /// row, so "Laura y la profesora Gómez" would count as "Laura Gómez". The authorization of R-SEG-03 runs first, so
+    /// this can only pick a student of the coordinator's own programs, never data the coordinator may not see.
+    /// </remarks>
     private async Task<bool> IsIdentifiedByQuestionAsync(
         SessionUser user, AuthorizedStudent student, ToolRunState state, CancellationToken cancellationToken)
     {

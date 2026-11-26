@@ -42,6 +42,40 @@ public class RoundFourTests
         Assert.EndsWith(SystemInstructions.LastCall, h.Llm.Requests[3].SystemInstruction, StringComparison.Ordinal);
     }
 
+    // DUDA-29: a data tool asked for on the last allowed call is not run (no API call, nothing logged): 503.
+    [Fact]
+    public async Task Data_tool_on_the_last_allowed_call_is_not_run()
+    {
+        var h = new AssistantHarness();
+        h.Options.MaxLlmCalls = 2;
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SearchRegulations, new { consulta = "promedio" }))
+            .EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus));
+
+        var answer = await h.AskStudentAsync("¿Cuál es mi promedio?");
+
+        Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
+        Assert.Equal(2, h.Llm.CallCount);
+        Assert.Empty(h.StudentDataCalls);
+        Assert.Empty(h.Log.StudentsConsulted);
+        Assert.Equal([AssistantTools.SearchRegulations], h.Log.Tools);
+        Assert.False(answer.UsedStudentData);
+    }
+
+    // `rechazar` on the last allowed call still ends the request with its 403.
+    [Fact]
+    public async Task Reject_on_the_last_allowed_call_is_still_403()
+    {
+        var h = new AssistantHarness();
+        h.Options.MaxLlmCalls = 2;
+        h.Llm.EnforceRejectBeforeDataTools = false; // On purpose: the decision comes on the last call.
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SearchRegulations, new { consulta = "notas" }))
+            .EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.Reject, new { motivo = "datos de terceros" }));
+
+        var answer = await h.AskStudentAsync("¿Qué nota sacó EST-003?");
+
+        Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
+    }
+
     // ESC-COO-13, R-SEG-12, D-21: with a first name only, the data tool never reads a match's data, even if the model
     // takes the id from buscar_estudiante; the answer is a 200 that asks for the id.
     [Fact]
@@ -192,13 +226,15 @@ public class RoundFourTests
         Assert.Contains("Sofía Herrera (EST-003): Inglés III", summary, StringComparison.Ordinal);
     }
 
-    // ESC-BAN-04, DUDA-44: a general question about the definitive grade does not carry the loss by absences.
+    // ESC-BAN-04, DUDA-44: a general question about the definitive grade drops the off-topic Artículo 11 citation;
+    // R-ARQ-03: the text written by the model is returned untouched, line breaks included.
     [Fact]
-    public async Task General_definitive_question_drops_the_off_topic_article_11()
+    public async Task General_definitive_question_drops_the_off_topic_article_11_and_keeps_the_text()
     {
+        const string text = "La definitiva pondera el corte 1 con 30%, el corte 2 con 30% y el corte 3 con 40%.\nSe redondea a una cifra decimal.\n\nSi un estudiante falta a más del 15% de las clases, la definitiva es 0.0.";
         var h = new AssistantHarness();
         h.Llm.EnqueueText(AssistantHarness.Final(
-            "La definitiva pondera el corte 1 con 30%, el corte 2 con 30% y el corte 3 con 40%. Se redondea a una cifra decimal. Si un estudiante falta a más del 15% de las clases, la definitiva es 0.0.",
+            text,
             (Evaluation, "Sección 2"),
             (Evaluation, "Sección 3"),
             (Regulation, "Artículo 11")));
@@ -206,8 +242,7 @@ public class RoundFourTests
         var answer = await h.AskStudentAsync("¿Cómo se calcula la nota definitiva de una asignatura?");
 
         Assert.Equal([new Citation(Evaluation, "Sección 2"), new Citation(Evaluation, "Sección 3")], answer.Citations);
-        Assert.DoesNotContain("15%", answer.Text, StringComparison.Ordinal);
-        Assert.Contains("40%", answer.Text, StringComparison.Ordinal);
+        Assert.Equal(text, answer.Text);
     }
 
     // R-RES-01: when the question asks about absences, Artículo 11 stays.

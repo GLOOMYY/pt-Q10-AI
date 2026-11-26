@@ -148,6 +148,16 @@ public sealed partial class AssistantService : IAssistantService
                     return Finish(response.Text, state, tokens, cost);
                 }
 
+                // DUDA-29: on the last allowed call no later call could use a tool result, so a turn that still asks for
+                // tools (other than the exits `rechazar` and `responder_sin_informacion`) is not run: no API call and
+                // nothing logged as consulted. The request ends with the 503 of an exhausted loop.
+                if (isLastCall
+                    && response.ToolCalls.All(c => c.Name != AssistantTools.Reject)
+                    && response.ToolCalls.Any(c => c.Name != AssistantTools.NoInformation))
+                {
+                    break;
+                }
+
                 var outcome = await RunToolsAsync(user, response, messages, state, !isLastCall, tokens, cost, cancellationToken)
                     .ConfigureAwait(false);
                 if (outcome is not null)
