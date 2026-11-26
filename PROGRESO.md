@@ -95,9 +95,9 @@ El responsable congeló el alcance. Estado final de las pruebas con el LLM real 
 
 - **Última pasada completa** (código hasta el PR #44, con reejecución de los 503 por límite de la clave): **141 de 145 aprobados**; 1 escenario no se ejecuta por diseño (`llm-cuota-agotada`, solo en `tests/`).
 - Fallos restantes de esa pasada y su estado:
-  - ESC-COO-10, ESC-COO-12 y ESC-SIM-09: corregidos en el PR #44. ESC-COO-10 y ESC-COO-12 pasaron al verificarlos con Gemini.
+  - ESC-COO-10 y ESC-COO-12: corregidos en el PR #44 y verificados con Gemini.
   - ESC-SIM-09: agotaba el timeout de 30 s por un bucle de razonamiento con temperatura 0. Corregido en el PR #45 (`thinkingLevel` = `low`, DUDA-50) y verificado con Gemini (200 en unos 8 s, con sus citas).
-- **Sin verificar con Gemini tras el PR #45:** la pasada completa de regresión con el nuevo nivel de razonamiento no se pudo ejecutar porque la cuota de la clave volvió a agotarse (429) y luego se congeló el alcance. En `tests/` (LLM falso) pasan los 145 escenarios `api` y los 24 unitarios.
+- **Sin verificar con Gemini tras el PR #45:** la pasada completa de regresión con el nuevo nivel de razonamiento no se pudo ejecutar porque la cuota de la clave volvió a agotarse (429) y luego se congeló el alcance. Los PR #39 y #40 no salieron de los evals: fueron peticiones del responsable. En `tests/` (LLM falso) pasan los 145 escenarios `api` y los 24 unitarios.
 - **Rondas de corrección de F5:** PR #25 y #45 (conocimiento: reintentos y nivel de razonamiento), #26, #27, #29, #35, #37, #41, #42, #43 y #44 (nucleo: uso de `rechazar`, salida sin información, cifras, citas, límite de 4 llamadas, nombre de pila → ID), #34 (seguridad: partículas en la barrera), #33 y #40 (devops: `.env.example`), #36 (conocimiento: búsqueda con raíces), #39 (devops: trailer `Generado-por: Humano`) y #46 (integracion: prueba intermitente de DUDA-40).
 - **Costo aproximado de todas las pasadas de evals:** menos de 0,30 USD.
 
