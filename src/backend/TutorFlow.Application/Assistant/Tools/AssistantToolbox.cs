@@ -619,8 +619,23 @@ public sealed class AssistantToolbox
         state.BackRule(new Citation(Welfare, "Sección 3.1"), "beca por rendimiento");
         state.BackRule(new Citation(Welfare, "Sección 3.1"), "beca de rendimiento");
 
+        // R-RES-02, ESC-INY-13: when the question asks for the weighted average and the data have one, an answer that
+        // states it ("promedio") also cites its rule, evaluacion_y_calificaciones.md Sección 4. Narrow on purpose: an
+        // average only mentioned on the way (e.g. as a scholarship requirement, Sección 3.1) adds nothing, and without
+        // an average (D-20) nothing is backed.
+        if (evaluation.Average is not null && AsksForTheAverage(state.Question))
+        {
+            state.BackRule(new Citation(Evaluation, "Sección 4"), "promedio");
+        }
+
         return (evaluation, attendance);
     }
+
+    /// <summary>Whether the question asks about the weighted average ("promedio", "promedios").</summary>
+    /// <param name="question">The question of the request.</param>
+    /// <returns><see langword="true"/> if a normalized word starts with <c>promedio</c>.</returns>
+    private static bool AsksForTheAverage(string question) =>
+        TextNormalizer.Words(question).Any(w => w.StartsWith("promedio", StringComparison.Ordinal));
 
     private static List<ProgramId>? ResolvePrograms(SessionUser user, JsonElement arguments)
     {
