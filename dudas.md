@@ -421,3 +421,27 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** el ejecutor no exige la clave; antes de empezar comprueba con una pregunta real que el backend responde 200 con `tokens > 0`. El responsable mantiene la clave real en el `.env` del stack. Si quiere, ajusta la frase de AGENTS §7.
 - **Respuesta:** _Resuelta por el orquestador de forma provisional aplicando la propuesta (PR #17)._
+
+## DUDA-36 · Scripts `test` y `build` del frontend que asume la CI
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** devops / devops/f4 (PR #20)
+- **Referencia:** DUDA-07, R-DEP-01
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el job `frontend` de la CI y el Dockerfile asumen que `src/frontend/package.json` define `test` (ejecución única no interactiva con `CI=true`) y `build` (salida en `dist/`), y que `package-lock.json` está versionado (lo exigen `npm ci` y la caché de `setup-node`).
+- **Qué quedó pendiente:** confirmarlo con el PR de frontend.
+- **Propuesta:** frontend cumple esa convención; el orquestador se lo indicó.
+- **Respuesta:** _Resuelta por el orquestador: se aplica la propuesta en F4._
+
+## DUDA-37 · F5 bloqueada por saturación del proveedor del LLM
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / —
+- **Referencia:** F5, R-QA-01, R-QA-04, CL-23, §5.0 (503)
+- **Tipo:** atasco (1 intento)
+- **Bloqueante:** sí
+- **Descripción:** con el sistema levantado con `docker compose` y la clave del `.env` del responsable, la primera pregunta documental respondió bien (200, cita del Artículo 5, 4 936 tokens). Las siguientes peticiones reciben de Gemini `HTTP 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.` o agotan el timeout de 30 s. El backend responde correctamente 503 sin inventar datos, pero así `evals/` daría fallos falsos en casi todos los escenarios.
+- **Qué quedó pendiente:** ejecutar `evals/` con el LLM real (F5).
+- **Propuesta:** reintentar cuando el proveedor se normalice (el orquestador deja un sondeo periódico). Si persiste, el responsable puede valorar otro `LLM_MODEL` en su `.env` (sin cambiar el SPEC) o ejecutar F5 en otro momento.
+- **Respuesta:** _(pendiente)_
