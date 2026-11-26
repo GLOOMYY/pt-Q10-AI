@@ -92,7 +92,7 @@ public sealed record LlmRequest(
 /// calls of the request.</param>
 /// <param name="CostUsd">Cost of this call, <b>not rounded</b>:
 /// <c>(PromptTokens × input price + (CandidatesTokens + ThoughtsTokens) × output price) / 1 000 000</c>, with the
-/// configured prices (R-DEP-02). The use case sums the calls and rounds the total to 6 decimals.</param>
+/// configured prices (R-DEP-02); computed with <see cref="LlmCost.Compute"/>. The use case sums the calls and rounds the total to 6 decimals.</param>
 public sealed record LlmUsage(int PromptTokens, int CandidatesTokens, int ThoughtsTokens, int TotalTokens, decimal CostUsd)
 {
     /// <summary>No usage (no call made).</summary>
