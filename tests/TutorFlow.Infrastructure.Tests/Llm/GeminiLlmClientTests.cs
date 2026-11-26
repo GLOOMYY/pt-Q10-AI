@@ -37,7 +37,8 @@ public sealed class GeminiLlmClientTests
         Func<HttpRequestMessage, string?, CancellationToken, Task<HttpResponseMessage>> respond,
         TimeSpan? timeout = null,
         int maxRetries = 2,
-        TimeSpan? backoff = null)
+        TimeSpan? backoff = null,
+        Action<LlmOptions>? configure = null)
     {
         var handler = new StubHandler(respond);
         var options = new LlmOptions
@@ -47,6 +48,7 @@ public sealed class GeminiLlmClientTests
             MaxRetries = maxRetries,
             RetryBackoff = backoff ?? TimeSpan.FromMilliseconds(1),
         };
+        configure?.Invoke(options);
         var http = new HttpClient(handler) { BaseAddress = options.BaseUrl };
         return (new GeminiLlmClient(http, Options.Create(options), NullLogger<GeminiLlmClient>.Instance), handler);
     }
@@ -104,6 +106,47 @@ public sealed class GeminiLlmClientTests
         Assert.Equal("consultar_notas", declaration.GetProperty("name").GetString());
         Assert.Equal("string", declaration.GetProperty("parametersJsonSchema")
             .GetProperty("properties").GetProperty("periodo").GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task Request_SendsLowThinkingLevelByDefault()
+    {
+        var (client, handler) = CreateReturning(HttpStatusCode.OK, TextReply);
+
+        await client.CompleteAsync(SampleRequest(), CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Body!);
+        var generation = doc.RootElement.GetProperty("generationConfig");
+        Assert.Equal("low", generation.GetProperty("thinkingConfig").GetProperty("thinkingLevel").GetString());
+        Assert.Equal(0, generation.GetProperty("temperature").GetDouble());
+    }
+
+    [Fact]
+    public async Task Request_SendsTheConfiguredThinkingLevel()
+    {
+        var (client, handler) = Create(
+            (_, _, _) => Task.FromResult(Json(HttpStatusCode.OK, TextReply)), configure: o => o.ThinkingLevel = "High");
+
+        await client.CompleteAsync(SampleRequest(), CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Body!);
+        Assert.Equal("high", doc.RootElement.GetProperty("generationConfig")
+            .GetProperty("thinkingConfig").GetProperty("thinkingLevel").GetString());
+    }
+
+    [Theory]
+    [InlineData("gemini-3.1-flash-lite", "")]
+    [InlineData("gemini-2.5-flash", "low")]
+    public async Task Request_OmitsThinkingConfigWhenDisabledOrModelIsNotGemini3(string model, string level)
+    {
+        var (client, handler) = Create(
+            (_, _, _) => Task.FromResult(Json(HttpStatusCode.OK, TextReply)),
+            configure: o => { o.Model = model; o.ThinkingLevel = level; });
+
+        await client.CompleteAsync(SampleRequest(), CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.Body!);
+        Assert.False(doc.RootElement.GetProperty("generationConfig").TryGetProperty("thinkingConfig", out _));
     }
 
     [Fact]

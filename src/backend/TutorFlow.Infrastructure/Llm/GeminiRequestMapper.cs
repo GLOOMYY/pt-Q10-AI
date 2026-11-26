@@ -9,8 +9,10 @@ internal static class GeminiRequestMapper
 {
     /// <summary>Builds the JSON body (system instruction, contents, tools and generation config).</summary>
     /// <param name="request">Provider-neutral request.</param>
+    /// <param name="model">Model name; <c>thinkingLevel</c> is only sent to Gemini 3 models.</param>
+    /// <param name="thinkingLevel">Thinking level (<c>minimal</c>, <c>low</c>, <c>medium</c>, <c>high</c>); empty omits it.</param>
     /// <returns>The JSON body.</returns>
-    public static JsonObject ToJson(LlmRequest request)
+    public static JsonObject ToJson(LlmRequest request, string? model = null, string? thinkingLevel = null)
     {
         var body = new JsonObject
         {
@@ -36,9 +38,19 @@ internal static class GeminiRequestMapper
             generation["responseJsonSchema"] = Clone(schema);
         }
 
+        // Gemini 3 exposes thinkingConfig.thinkingLevel (https://ai.google.dev/gemini-api/docs/thinking); older models
+        // use thinkingBudget instead, so nothing is sent for them. Bounds latency and cost (R-QA-04).
+        if (!string.IsNullOrWhiteSpace(thinkingLevel) && IsGemini3(model))
+        {
+            generation["thinkingConfig"] = new JsonObject { ["thinkingLevel"] = thinkingLevel.Trim().ToLowerInvariant() };
+        }
+
         body["generationConfig"] = generation;
         return body;
     }
+
+    private static bool IsGemini3(string? model) =>
+        model is not null && model.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase);
 
     private static JsonObject ToDeclaration(LlmToolDefinition tool)
     {
