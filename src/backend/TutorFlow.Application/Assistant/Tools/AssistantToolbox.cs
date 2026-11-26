@@ -24,6 +24,9 @@ public sealed class AssistantToolbox
     /// <summary>Maximum fragments returned by <see cref="AssistantTools.SearchRegulations"/>.</summary>
     public const int MaxSearchResults = 5;
 
+    private const string Regulation = "reglamento_academico_2025.md";
+    private const string Evaluation = "evaluacion_y_calificaciones.md";
+
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
     private readonly IAcademicDirectory _directory;
@@ -134,6 +137,7 @@ public sealed class AssistantToolbox
             ["notaExamen"] = NumberFormat.Grade(exam),
             ["definitivaResultante"] = NumberFormat.Grade(HabilitationRules.ApplyExamGrade(exam)),
             ["regla"] = "La nota de la habilitación reemplaza la definitiva y no puede superar 3.0.",
+            ["citasReglas"] = RuleCitations((Regulation, "Artículo 6")),
         });
     }
 
@@ -205,6 +209,18 @@ public sealed class AssistantToolbox
             result["porcentajeEvaluado"] = accumulated.EvaluatedPercent.ToString(CultureInfo.InvariantCulture) + " %";
         }
 
+        // R-CAL-11: a simulation cites Evaluación §2-3, plus the rule of its special outcome (R-RES-02: data + rule).
+        var rules = new List<(string, string)> { (Evaluation, "Sección 2"), (Evaluation, "Sección 3") };
+        if (simulation.Result.Outcome == SimulationOutcome.LostByAbsences)
+        {
+            rules.Add((Regulation, "Artículo 11"));
+        }
+        else if (simulation.Result.Outcome == SimulationOutcome.NoPendingCuts && course.IsLost)
+        {
+            rules.Add((Regulation, "Artículo 6"));
+        }
+
+        result["citasReglas"] = RuleCitations([.. rules]);
         result["citasDatos"] = CitationsJson(user, access.Student!, state);
         return Completed(result);
     }
@@ -257,6 +273,7 @@ public sealed class AssistantToolbox
             ["creditosRestantes"] = remaining,
             ["conservaElMinimoDe8Creditos"] = CancellationRules.KeepsMinimumCredits(data.Evaluation.EnrolledCredits, credits),
             ["regla"] = "Se puede cancelar hasta la semana 8 del periodo conservando al menos 8 créditos. No se conoce la semana actual: no afirmes si todavía está a tiempo.",
+            ["citasReglas"] = RuleCitations((Regulation, "Artículo 15"), (Regulation, "Artículo 16")),
             ["citasDatos"] = CitationsJson(user, access.Student!, state),
         });
     }
@@ -474,6 +491,9 @@ public sealed class AssistantToolbox
 
     private static JsonArray ProgramCitationsJson(IEnumerable<ProgramId> programs, string? period) =>
         [.. programs.Select(p => (JsonNode)CitationJson(DataCitations.Program(p, period ?? string.Empty)))];
+
+    private static JsonArray RuleCitations(params (string Document, string Section)[] rules) =>
+        [.. rules.Select(r => (JsonNode)CitationJson(new Citation(r.Document, r.Section)))];
 
     private static JsonObject CitationJson(Citation citation) =>
         new() { ["documento"] = citation.Document, ["seccion"] = citation.Section };

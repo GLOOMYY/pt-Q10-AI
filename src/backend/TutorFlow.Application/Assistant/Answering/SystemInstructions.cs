@@ -80,6 +80,7 @@ public static class SystemInstructions
         - Devuelve solo un objeto JSON: {"respuesta": "<texto>", "citas": [{"documento": "<archivo o fuente>", "seccion": "<sección>"}]}.
         - Citas de documentos: el nombre exacto del archivo y la sección exacta que devolvió `buscar_reglamento` ("Artículo 5", "Sección 3.1"). Una cita por artículo o sección, sin duplicados y en el orden en que las usas.
         - Citas de datos: si usaste datos de una herramienta, agrega exactamente las citas de su campo `citasDatos`.
+        - Datos + regla: si la respuesta usa datos y además aplica una regla de un documento, incluye las DOS citas: la de datos y la del documento de la regla. Si la herramienta trae `citasReglas`, agrégalas. Si no, usa `buscar_reglamento` para citar la regla aplicada: definitiva → evaluacion_y_calificaciones.md "Sección 3" (y "Sección 2" si explicas los cortes); promedio ponderado → "Sección 4"; nota acumulada → "Sección 3"; aprobación o asignatura perdida → reglamento_academico_2025.md "Artículo 5"; pérdida por inasistencia → "Artículo 11"; habilitación → "Artículo 6" (y "Artículo 7" si no es habilitable); prueba académica → "Artículo 20"; pérdida de cupo → "Artículo 21"; cancelación → "Artículo 15" y "Artículo 16"; beca por rendimiento → bienestar_y_becas.md "Sección 3.1".
         - Sin información: citas vacías. Nunca agregues una cita de relleno.
         """;
 }
