@@ -22,6 +22,11 @@ public enum AssistantOutcome
 /// Result of the use case. Errors keep the shape of the successful output (SPEC §5.0, D-08) and are built with the
 /// factory methods, which set the fixed texts and citations.
 /// </summary>
+/// <remarks>
+/// The use case passes it to <see cref="IRequestAuditContext.Complete"/>, which takes <c>motivo</c>, <c>citas</c>,
+/// <c>tokens</c> and <c>costoUsd</c> from it. The consulted students, routes and tools are not carried here: they are
+/// recorded in the <see cref="IRequestAuditContext"/> when each call happens (R-LOG-04).
+/// </remarks>
 public sealed record AssistantAnswer
 {
     /// <summary>Fixed text of the 403 (SPEC §5.0).</summary>
@@ -84,7 +89,10 @@ public sealed record AssistantAnswer
     /// <summary><c>costoUsd</c>, rounded to 6 decimals (R-RES-05).</summary>
     public decimal CostUsd { get; }
 
-    /// <summary>Audit <c>motivo</c> (one of <see cref="AuditReasons"/>); <see langword="null"/> when answered (R-LOG-10).</summary>
+    /// <summary>
+    /// Audit <c>motivo</c> (one of <see cref="AuditReasons"/>); <see langword="null"/> when answered (R-LOG-10). It reaches
+    /// the record through <see cref="IRequestAuditContext.Complete"/>; it is never sent to the client.
+    /// </summary>
     public string? Reason { get; }
 
     /// <summary>200 with the answer written from authorized data.</summary>

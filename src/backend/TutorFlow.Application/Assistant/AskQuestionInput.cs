@@ -7,7 +7,9 @@ public sealed record DeclaredUser(string? Role, string? Id);
 
 /// <summary>
 /// Raw input of <c>POST /api/asistente/preguntar</c> as the inbound adapter read it. Every request goes through the
-/// use case, even a malformed one, so a single place decides the status and the audit record (R-LOG-01).
+/// use case, even a malformed one, so a single place decides the status and its outcome data (reason, citations,
+/// tokens, cost), which it hands to <see cref="Ports.Audit.IRequestAuditContext.Complete"/>. The use case does not
+/// write the audit record: the security middleware does, once per request (R-LOG-01).
 /// </summary>
 /// <param name="Question">Raw <c>pregunta</c>; <see langword="null"/> if absent.</param>
 /// <param name="User">Raw <c>usuario</c>; <see langword="null"/> if absent.</param>
