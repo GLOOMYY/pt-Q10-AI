@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using TutorFlow.Api.Endpoints;
 using TutorFlow.Application;
 using TutorFlow.Infrastructure;
+using TutorFlow.Infrastructure.Llm;
 
 // R-DEP-02: all configuration comes from environment variables (part of IConfiguration by default).
 var builder = WebApplication.CreateBuilder(args);

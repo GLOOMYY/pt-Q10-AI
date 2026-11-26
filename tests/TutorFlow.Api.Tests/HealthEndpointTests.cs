@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TutorFlow.Infrastructure;
+using TutorFlow.Infrastructure.Llm;
 using Xunit;
 
 namespace TutorFlow.Api.Tests;
