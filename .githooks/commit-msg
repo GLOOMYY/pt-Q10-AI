@@ -9,8 +9,12 @@
 #   - no Co-Authored-By trailer anywhere.
 # Merge commits are exempt (AGENTS §9.2): they carry MERGE_HEAD while the merge is in progress.
 #
-# Usage: sh .githooks/commit-msg <message-file>
-# The CI runs this same script on every non-merge commit of a PR.
+# Usage: sh .githooks/commit-msg [--strict] <message-file>
+#   Default (local hook): lines starting with '#' are dropped, as git does in the editor.
+#   --strict (CI): the message is validated exactly as `git log --format=%B` stores it; no line
+#   is dropped, so a '#' line counts as content. The trailer rule applies to the last non-blank
+#   line, and trailing blank lines are ignored in both modes.
+# The CI runs this same script with --strict on every non-merge commit of a PR.
 # POSIX sh, so it runs under Git Bash (Windows), Linux and the CI runner.
 
 set -u
@@ -22,6 +26,12 @@ fail() {
   echo "commit-msg: expected format: type(scope): description / blank line / body / blank line / $TRAILER" >&2
   exit 1
 }
+
+STRICT=0
+if [ "${1:-}" = "--strict" ]; then
+  STRICT=1
+  shift
+fi
 
 MSG_FILE="${1:-}"
 if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
@@ -35,16 +45,22 @@ if [ -n "$GIT_DIR" ] && [ -f "$GIT_DIR/MERGE_HEAD" ]; then
   exit 0
 fi
 
-# Strip git comment lines and Windows CR characters. Command substitution also drops
-# trailing empty lines, so the last line below is always the last real line.
-CLEAN=$(sed -e 's/\r$//' -e '/^#/d' "$MSG_FILE")
-if [ -z "$CLEAN" ]; then
+# Windows CR characters are always removed. Git comment lines are removed only in the local
+# mode (--strict keeps them, as the stored message does).
+if [ "$STRICT" -eq 1 ]; then
+  CLEAN=$(sed -e 's/\r$//' "$MSG_FILE")
+else
+  CLEAN=$(sed -e 's/\r$//' -e '/^#/d' "$MSG_FILE")
+fi
+
+# Number of the last non-blank line: trailing blank lines are not part of the message.
+LAST_NO=$(printf '%s\n' "$CLEAN" | grep -n '[^[:space:]]' | tail -n 1 | cut -d: -f1)
+if [ -z "$LAST_NO" ]; then
   fail "the commit message is empty."
 fi
 
 TITLE=$(printf '%s\n' "$CLEAN" | sed -n '1p')
-LAST=$(printf '%s\n' "$CLEAN" | tail -n 1)
-NLINES=$(printf '%s\n' "$CLEAN" | wc -l | tr -d ' ')
+LAST=$(printf '%s\n' "$CLEAN" | sed -n "${LAST_NO}p")
 
 # Title: Conventional Commits type, optional scope, and a non-empty description.
 if ! printf '%s\n' "$TITLE" | grep -Eq '^(feat|fix|test|ci|docs|refactor|build|chore)(\([a-z0-9][a-z0-9._/-]*\))?: .*[^[:space:]]'; then
@@ -62,10 +78,10 @@ if [ "$LAST" != "$TRAILER" ]; then
 fi
 
 # The trailer must be separated from the rest by a blank line.
-if [ "$NLINES" -lt 2 ]; then
+if [ "$LAST_NO" -lt 2 ]; then
   fail "the trailer must be preceded by a blank line."
 fi
-PREV=$(printf '%s\n' "$CLEAN" | tail -n 2 | head -n 1)
+PREV=$(printf '%s\n' "$CLEAN" | sed -n "$((LAST_NO - 1))p")
 case "$PREV" in
   *[![:space:]]*) fail "the trailer must be preceded by a blank line." ;;
 esac
