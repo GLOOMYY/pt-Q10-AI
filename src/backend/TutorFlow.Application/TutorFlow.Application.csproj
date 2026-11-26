@@ -6,6 +6,7 @@
     <!-- Microsoft.Extensions.* abstractions only (DI, Options, Logging). No ASP.NET Core dependency in this layer (AGENTS 5). -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 </Project>

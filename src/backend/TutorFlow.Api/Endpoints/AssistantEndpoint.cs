@@ -1,6 +1,7 @@
 using System.Text.Json;
 using TutorFlow.Api.Contracts;
 using TutorFlow.Application.Assistant;
+using TutorFlow.Application.Ports.Audit;
 
 namespace TutorFlow.Api.Endpoints;
 
@@ -37,11 +38,16 @@ public static class AssistantEndpoint
     private static async Task<IResult> HandleAsync(
         HttpRequest request,
         IAssistantService assistant,
+        IRequestAuditContext audit,
         CancellationToken cancellationToken)
     {
         // The body is read by hand (not by minimal API binding) so that any malformed body, whatever its
         // Content-Type, still gets the 400 with the contract shape (SPEC §5.0) and goes through the use case.
         var input = await ReadInputAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // R-LOG-01, D-27: the adapter is the only one that parses the body, so it records the question as received and
+        // the declared user (whatever could be read: nothing for a malformed body).
+        audit.SetRequest(input.Question, new AuditUser(input.User?.Role, input.User?.Id));
         var answer = await assistant.AskAsync(input, cancellationToken).ConfigureAwait(false);
         return Results.Json(AskQuestionResponse.From(answer), statusCode: ToStatusCode(answer.Outcome));
     }
