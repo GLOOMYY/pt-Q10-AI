@@ -1,11 +1,12 @@
-using System.Globalization;
 using System.Text;
+using SecurityNormalizer = TutorFlow.Application.Security.Defenses.TextNormalizer;
 
 namespace TutorFlow.Application.Assistant.Tools;
 
 /// <summary>
-/// Normalization used to match course and student names typed by the model or the user: lower case, no diacritics
-/// (the <c>ñ</c> is kept, as in escenarios/README §4.1), punctuation as spaces and single spaces.
+/// Normalization used to match course and student names and article labels: the normalization of the defenses
+/// (<see cref="SecurityNormalizer.Normalize"/>: no case, no accents, the <c>ñ</c> kept, single spaces) plus punctuation
+/// turned into spaces, so <c>"¿Laura?"</c> matches <c>"laura"</c> and <c>"3.1"</c> becomes <c>"3 1"</c>.
 /// </summary>
 public static class TextNormalizer
 {
@@ -14,25 +15,10 @@ public static class TextNormalizer
     /// <returns>The normalized text, e.g. <c>"Sofía  Herrera"</c> → <c>"sofia herrera"</c>.</returns>
     public static string Normalize(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        var normalized = SecurityNormalizer.Normalize(text);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var c in normalized)
         {
-            return string.Empty;
-        }
-
-        var builder = new StringBuilder(text.Length);
-        foreach (var c in text.ToLowerInvariant().Normalize(NormalizationForm.FormD))
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
-            {
-                // Keep the tilde of ñ (n + U+0303), drop every other mark.
-                if (c == '̃' && builder.Length > 0 && builder[^1] == 'n')
-                {
-                    builder[^1] = 'ñ';
-                }
-
-                continue;
-            }
-
             builder.Append(char.IsLetterOrDigit(c) || c == '-' ? c : ' ');
         }
 
