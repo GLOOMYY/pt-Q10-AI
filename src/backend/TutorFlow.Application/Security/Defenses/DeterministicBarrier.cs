@@ -14,7 +14,9 @@ namespace TutorFlow.Application.Security.Defenses;
 /// student user: every other student. A coordinator: the students of programs not in their charge (taken from
 /// <c>GET /coordinadores/{id}</c>, API-08). It never contains the user nor, for a coordinator, students of their programs.</para>
 /// <para><b>What is searched:</b> the id, the full name and each word of the name, compared without case, accents or
-/// repeated spaces and as whole words (<c>EST-002</c> is not inside <c>EST-0021</c>). Single words shorter than 3 letters and common name particles (<c>del</c>, <c>las</c>, <c>los</c>, <c>san</c>, <c>von</c>, <c>van</c>...) are not searched on their own (DUDA-26). Words that are also part of a name
+/// repeated spaces and as whole words (<c>EST-002</c> is not inside <c>EST-0021</c>). Single words shorter than 3 letters and
+/// common name particles (<c>del</c>, <c>las</c>, <c>los</c>, <c>san</c>, <c>von</c>, <c>van</c>...) are not searched on
+/// their own (DUDA-26). Words that are also part of a name
 /// the user can see are not searched, so legitimate questions are not rejected. Course codes that look like ids
 /// (<c>EST-103</c>, CL-08) are not students and are never in the list.</para>
 /// <para><b>Audit:</b> every route requested is recorded with <see cref="IRequestAuditContext.RecordResource"/>, but no
