@@ -224,7 +224,7 @@ Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o d
 | Activar los git hooks | `git config core.hooksPath .githooks` (una vez por clon; lo comparten todos los worktrees). |
 | Validar un mensaje de commit a mano | `sh .githooks/commit-msg <archivo-con-el-mensaje>`. Con `--strict` (como en la CI) no se eliminan las líneas que empiezan por `#`: `sh .githooks/commit-msg --strict <archivo>` |
 
-- El `pre-commit` compila la solución y ejecuta `tests/`. El `commit-msg` valida el formato y el trailer `Generado-por: Claude Code`. Los commits de merge están exentos.
+- El `pre-commit` compila la solución y ejecuta `tests/`. El `commit-msg` valida el formato y el trailer: `Generado-por: Claude Code` (commits de la fábrica) o `Generado-por: Humano` (solo commits hechos por el responsable). Los commits de merge están exentos.
 - La CI (`.github/workflows/ci.yml`) repite estas comprobaciones en cada PR a `main`, con el frontend (`npm ci`, `npm test`, `npm run build`, si existe `src/frontend`) y el smoke de `docker compose` (`/api/salud`, y `/` si existe el frontend). `evals/` no corre en CI.
 
 ## 12. Definición de terminado
