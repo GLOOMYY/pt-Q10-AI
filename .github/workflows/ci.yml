@@ -4,9 +4,11 @@
 #   build-and-test   · builds the solution and runs tests/ with the fake LLM.
 #   commit-format    · validates format and trailer of every non-merge commit of the PR,
 #                      with the same .githooks/commit-msg script used locally.
-#   compose-smoke    · docker compose up, then GET /api/salud must return 200.
+#   compose-smoke    · docker compose up with no manual setup, the backend must be able to
+#                      write the audit volume, then GET /api/salud must return 200.
 #
 # The LLM key is a fake value: the LLM is a test double in tests/ and in CI (AGENTS §7, §8).
+# Actions are pinned by commit SHA (the version tag is kept in a comment).
 
 name: CI
 
@@ -28,11 +30,11 @@ jobs:
     env:
       LLM_API_KEY: ci-clave-ficticia-no-real
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: "10.0.x"
 
@@ -46,7 +48,7 @@ jobs:
     name: Commit format and trailer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           # Full history: needed to compare the PR head with origin/<base>.
@@ -68,6 +70,7 @@ jobs:
           for sha in $COMMITS; do
             subject=$(git log -1 --format=%s "$sha")
             echo "Checking $sha: $subject"
+            # The message is validated exactly as git stores it (no line is removed here).
             git log -1 --format=%B "$sha" > "$RUNNER_TEMP/commit-msg.txt"
             if ! sh .githooks/commit-msg "$RUNNER_TEMP/commit-msg.txt"; then
               echo "::error::Commit $sha does not follow the format of AGENTS §9.2: $subject"
@@ -80,18 +83,23 @@ jobs:
     name: docker compose up and GET /api/salud
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Create a .env with a fake key (never a real secret)
         run: printf 'LLM_API_KEY=%s\n' "ci-clave-ficticia-no-real" > .env
 
-      - name: Prepare the audit volume (writable by the container's non-root user)
-        run: mkdir -p var/auditoria && chmod 777 var/auditoria
-
+      # No mkdir/chmod here on purpose: a fresh clone has no var/, and the stack must start
+      # anyway (R-DEP-01). The audit-init service in docker-compose.yml prepares the volume.
       - name: Build and start the stack
         run: docker compose up -d --build --wait --wait-timeout 300
+
+      # R-LOG-07: the backend (user app, UID 1654) must be able to write the audit volume.
+      - name: The backend can write to the audit volume
+        run: |
+          docker compose exec -T backend sh -c 'test "$(id -u)" = 1654 && touch /app/var/auditoria/.probe && rm /app/var/auditoria/.probe'
+          echo "Audit volume is writable by the backend user (UID 1654)."
 
       - name: GET /api/salud must return 200
         run: |
