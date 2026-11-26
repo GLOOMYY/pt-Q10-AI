@@ -42,6 +42,17 @@ public class UserIdentityTests
         Assert.False(UserIdentity.TryCreate(UserRole.Student, id, out _));
     }
 
+    // R-SEG-04: invalid characters are rejected before upper-casing, which would map them to ASCII (ſ → S, ı → I).
+    [Theory]
+    [InlineData(UserRole.Student, " eſt-001")]
+    [InlineData(UserRole.Student, "EST-001 ")]
+    [InlineData(UserRole.Coordinator, "coord-01ı")]
+    [InlineData(UserRole.Coordinator, "ıCOORD-01")]
+    public void Non_ascii_characters_make_the_id_invalid(UserRole role, string id)
+    {
+        Assert.False(UserIdentity.TryCreate(role, id, out _));
+    }
+
     // ESC-ENT-14, CL-12: the id must correspond to the declared role.
     [Fact]
     public void Role_and_id_must_be_coherent()

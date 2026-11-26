@@ -8,8 +8,13 @@ namespace TutorFlow.Application.Ports.AcademicApi;
 /// </summary>
 internal static class AcademicIdNormalizer
 {
-    /// <summary>Returns the normalized identifier, or <see langword="null"/> when the input is null.</summary>
-    public static string? Normalize(string? raw) => raw?.Trim().ToUpperInvariant();
+    /// <summary>
+    /// Returns the normalized identifier, or <see langword="null"/> when the input is null or has any non-ASCII
+    /// character. The ASCII check runs first because <see cref="string.ToUpperInvariant"/> maps some non-ASCII letters
+    /// to ASCII (<c>ſ</c> → <c>S</c>, <c>ı</c> → <c>I</c>): <c>" eſt-001"</c> must be an invalid id (R-SEG-04).
+    /// </summary>
+    public static string? Normalize(string? raw) =>
+        raw is null || !System.Text.Ascii.IsValid(raw) ? null : raw.Trim().ToUpperInvariant();
 }
 
 /// <summary>
