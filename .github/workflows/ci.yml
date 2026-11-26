@@ -1,0 +1,110 @@
+# CI · TutorFlow (AGENTS §9.4). Runs on every pull request to main.
+#
+# Jobs:
+#   build-and-test   · builds the solution and runs tests/ with the fake LLM.
+#   commit-format    · validates format and trailer of every non-merge commit of the PR,
+#                      with the same .githooks/commit-msg script used locally.
+#   compose-smoke    · docker compose up, then GET /api/salud must return 200.
+#
+# The LLM key is a fake value: the LLM is a test double in tests/ and in CI (AGENTS §7, §8).
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and tests (fake LLM)
+    runs-on: ubuntu-latest
+    env:
+      LLM_API_KEY: ci-clave-ficticia-no-real
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build the solution
+        run: dotnet build src/backend/TutorFlow.sln --nologo
+
+      - name: Run tests/
+        run: dotnet test src/backend/TutorFlow.sln --no-build --nologo
+
+  commit-format:
+    name: Commit format and trailer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Full history: needed to compare the PR head with origin/<base>.
+          fetch-depth: 0
+
+      - name: Validate every non-merge commit of the PR
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          # Commits in the PR that are not in the base branch. --no-merges skips merge commits (AGENTS §9.2).
+          COMMITS=$(git rev-list --no-merges "origin/$BASE_REF..$HEAD_SHA")
+          if [ -z "$COMMITS" ]; then
+            echo "No non-merge commits to check."
+            exit 0
+          fi
+          status=0
+          for sha in $COMMITS; do
+            subject=$(git log -1 --format=%s "$sha")
+            echo "Checking $sha: $subject"
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/commit-msg.txt"
+            if ! sh .githooks/commit-msg "$RUNNER_TEMP/commit-msg.txt"; then
+              echo "::error::Commit $sha does not follow the format of AGENTS §9.2: $subject"
+              status=1
+            fi
+          done
+          exit $status
+
+  compose-smoke:
+    name: docker compose up and GET /api/salud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Create a .env with a fake key (never a real secret)
+        run: printf 'LLM_API_KEY=%s\n' "ci-clave-ficticia-no-real" > .env
+
+      - name: Prepare the audit volume (writable by the container's non-root user)
+        run: mkdir -p var/auditoria && chmod 777 var/auditoria
+
+      - name: Build and start the stack
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: GET /api/salud must return 200
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:8080/api/salud)
+          echo "GET /api/salud -> $code"
+          test "$code" = "200"
+
+      - name: Show container state and logs on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v --remove-orphans
