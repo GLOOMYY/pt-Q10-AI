@@ -601,3 +601,15 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** documentarla en `.env.example` (devops) y, si el responsable lo desea, en R-DEP-02.
 - **Propuesta:** mantener `low` por defecto; devops la documenta como opcional.
 - **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-51 · Pasada completa de `evals/` pendiente tras el PR #45
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / —
+- **Referencia:** F5, R-QA-01, DUDA-50
+- **Tipo:** atasco (3 intentos)
+- **Bloqueante:** sí
+- **Descripción:** el PR #45 cambia el nivel de razonamiento de Gemini (`thinkingLevel` = `low`) y afecta a todas las respuestas. La última pasada completa con el LLM real (141 de 145) es anterior a ese cambio; tras él solo se verificó ESC-SIM-09. Tres intentos de pasada completa sobre `main` (`99eb399`) fallaron en la comprobación previa por `HTTP 429: You exceeded your current quota` de la clave del responsable. Además, el responsable congeló el alcance.
+- **Qué quedó pendiente:** ejecutar la pasada completa de `evals/` sobre `main` y, si aparecen regresiones, asignarlas al rol dueño.
+- **Propuesta:** cuando la cuota de la clave lo permita, levantar el stack (`docker compose up -d --build --wait`) y ejecutar `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo> --delay-ms 15000` por archivo de escenarios.
+- **Respuesta:** _(pendiente del responsable)_
