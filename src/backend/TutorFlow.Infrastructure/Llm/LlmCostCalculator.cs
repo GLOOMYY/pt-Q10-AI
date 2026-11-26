@@ -26,15 +26,12 @@ public static class LlmCostCalculator
         decimal inputPriceUsdPerMTok,
         decimal outputPriceUsdPerMTok)
     {
-        if (promptTokens < 0 || candidatesTokens < 0 || thoughtsTokens < 0 || totalTokens < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(promptTokens), "Token counts must not be negative.");
-        }
-
-        if (inputPriceUsdPerMTok < 0m || outputPriceUsdPerMTok < 0m)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inputPriceUsdPerMTok), "Prices must not be negative.");
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(promptTokens);
+        ArgumentOutOfRangeException.ThrowIfNegative(candidatesTokens);
+        ArgumentOutOfRangeException.ThrowIfNegative(thoughtsTokens);
+        ArgumentOutOfRangeException.ThrowIfNegative(totalTokens);
+        ArgumentOutOfRangeException.ThrowIfNegative(inputPriceUsdPerMTok);
+        ArgumentOutOfRangeException.ThrowIfNegative(outputPriceUsdPerMTok);
 
         var cost = ((promptTokens * inputPriceUsdPerMTok)
             + ((candidatesTokens + thoughtsTokens) * outputPriceUsdPerMTok)) / TokensPerMillion;

@@ -27,6 +27,15 @@ public sealed class FakeLlmClient : ILlmClient
     /// <summary>USD per million output tokens used for the reported cost (R-RES-05 defaults).</summary>
     public decimal OutputPriceUsdPerMTok { get; set; } = 1.50m;
 
+    /// <summary>
+    /// D-32 across turns (default <see langword="true"/>): <c>rechazar</c> is decided before any data tool, so a reply
+    /// calling it after a previous turn already called a data tool is a script error and throws
+    /// <see cref="InvalidOperationException"/>. Set it to <see langword="false"/> to script a model that queries data
+    /// and then rejects, e.g. to check that the audit log reports what was really queried (R-LOG-04). Within a single
+    /// reply, <see cref="FakeLlmReply.FromToolCalls"/> always enforces the order.
+    /// </summary>
+    public bool EnforceRejectBeforeDataTools { get; set; } = true;
+
     /// <summary>Requests received so far, in order.</summary>
     public IReadOnlyList<LlmRequest> Requests
     {
@@ -134,11 +143,25 @@ public sealed class FakeLlmClient : ILlmClient
             }
         }
 
-        // R-RES-05: cost of the call with the configured prices, not rounded.
-        var cost = (reply.PromptTokens * InputPriceUsdPerMTok
-            + (reply.CandidatesTokens + reply.ThoughtsTokens) * OutputPriceUsdPerMTok) / 1_000_000m;
+        if (EnforceRejectBeforeDataTools
+            && reply.ToolCalls.Any(c => c.Name == FakeLlmReply.RejectToolName)
+            && request.Messages.Any(m => m.Role == LlmRole.Model
+                && m.ToolCalls.Any(c => c.Name != FakeLlmReply.RejectToolName)))
+        {
+            throw new InvalidOperationException(
+                "D-32: 'rechazar' cannot come after a data tool already called in this request. "
+                + "Set EnforceRejectBeforeDataTools to false to script that on purpose.");
+        }
+
+        // R-RES-05: cost of the call with the configured prices, not rounded (same formula as the real adapter).
         var total = reply.PromptTokens + reply.CandidatesTokens + reply.ThoughtsTokens;
-        var usage = new LlmUsage(reply.PromptTokens, reply.CandidatesTokens, reply.ThoughtsTokens, total, cost);
+        var usage = new LlmUsage(
+            reply.PromptTokens,
+            reply.CandidatesTokens,
+            reply.ThoughtsTokens,
+            total,
+            (reply.PromptTokens * InputPriceUsdPerMTok
+                + (reply.CandidatesTokens + reply.ThoughtsTokens) * OutputPriceUsdPerMTok) / 1_000_000m);
         return Task.FromResult(new LlmResponse(reply.Text, reply.ToolCalls, usage));
     }
 }
