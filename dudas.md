@@ -312,7 +312,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la barrera bloquea "cada palabra del nombre". Un nombre con partículas ("de", "la") bloquearía casi cualquier pregunta. Con los datos actuales no ocurre; no se excluyó ninguna palabra para no inventar la regla.
 - **Qué quedó pendiente:** nada con los datos actuales.
 - **Propuesta:** ignorar partículas comunes o palabras de menos de 3 letras si el responsable lo aprueba.
-- **Respuesta:** _Aceptada por el responsable (2026-11-26): no se excluyen partículas mientras los datos no lo requieran._
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): se aplica la propuesta; la barrera ignora las partículas comunes y las palabras de menos de 3 letras de los nombres. Se asigna a seguridad (R-SEG-14)._
 
 ## DUDA-27 · Restricción del `X-Correlation-Id` reutilizado
 
@@ -336,7 +336,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la ruta del log de auditoría es configurable con `AUDIT_LOG_PATH`, opcional, con valor por defecto `var/auditoria/auditoria.jsonl`. No figura en R-DEP-02.
 - **Qué quedó pendiente:** documentarla en `.env.example`.
 - **Propuesta:** devops la documenta como opcional (igual que DUDA-16 y DUDA-18).
-- **Respuesta:** _Aceptada por el responsable (2026-11-26): `AUDIT_LOG_PATH` opcional._
+- **Respuesta:** _Resuelta por el orquestador: se asigna a devops en F4._ Respuesta del responsable (2026-11-26): aceptada (`AUDIT_LOG_PATH` opcional).
 
 ## DUDA-29 · Límite de llamadas al LLM por pregunta
 
@@ -444,7 +444,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con el sistema levantado con `docker compose` y la clave del `.env` del responsable, la primera pregunta documental respondió bien (200, cita del Artículo 5, 4 936 tokens). Las siguientes peticiones reciben de Gemini `HTTP 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.` o agotan el timeout de 30 s. El backend responde correctamente 503 sin inventar datos, pero así `evals/` daría fallos falsos en casi todos los escenarios.
 - **Qué quedó pendiente:** ejecutar `evals/` con el LLM real (F5).
 - **Propuesta:** reintentar cuando el proveedor se normalice (el orquestador deja un sondeo periódico). Si persiste, el responsable puede valorar otro `LLM_MODEL` en su `.env` (sin cambiar el SPEC) o ejecutar F5 en otro momento.
-- **Respuesta:** _Resuelta con DUDA-43 y DUDA-45 (2026-11-26)._
+- **Respuesta:** _Cerrada por el orquestador como consecuencia de DUDA-43 y DUDA-45 (2026-11-26); el responsable no la respondió por separado._
 
 ## DUDA-38 · Ejecución de `evals/` cortada por memoria del equipo
 
@@ -456,7 +456,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la primera ejecución completa de `evals/` (unos 140 escenarios enviados) fue detenida por el entorno con "the system is running low on memory" antes de escribir el informe. El equipo tenía 2,2 GB libres de 15,9 GB (WSL de Docker con unos 2,9 GB).
 - **Qué quedó pendiente:** nada; el orquestador relanzó F5 por tandas (un archivo de escenarios por ejecución, `--file`) tras cerrar el servidor de compilación de .NET.
 - **Propuesta:** en el equipo del responsable, ejecutar `evals/` por tandas o con más memoria libre.
-- **Respuesta:** _Resuelta: el responsable liberó memoria (2026-11-26)._
+- **Respuesta:** _Resuelta por el orquestador: ejecución por tandas._ Respuesta del responsable (2026-11-26): «ya liberé memoria».
 
 ## DUDA-39 · Reintento de errores transitorios del proveedor del LLM
 
@@ -480,7 +480,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el hook `pre-commit` falló una vez en 1 de las 197 pruebas de integración y pasó al repetirlo. El orquestador ejecutó la suite 3 veces sobre `main` (197/197 en las tres) sin reproducirlo. El equipo estaba con poca memoria en ese momento (DUDA-38).
 - **Qué quedó pendiente:** identificar la prueba si vuelve a fallar.
 - **Propuesta:** si reaparece, asignar a integracion su diagnóstico con el nombre exacto de la prueba y el error; no se marca ni se salta ninguna prueba.
-- **Respuesta:** _Respondida por el responsable (2026-11-26); no se ha vuelto a reproducir._
+- **Respuesta:** _Respuesta del responsable (2026-11-26): «ya liberé memoria». Nota del orquestador: la prueba no se ha vuelto a reproducir._
 
 ## DUDA-41 · ESC-INY-04: Output esperado 200 frente a la nota "si se detecta, 403"
 
@@ -540,4 +540,4 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** al reanudar F5 con el stack reconstruido sobre `main` (incluye el PR #29), Gemini responde `HTTP 429: You exceeded your current quota, please check your plan and billing details` en todas las peticiones durante más de 5 minutos (12 respuestas 429 seguidas). El backend responde 503 como exige CL-23, sin inventar datos. Es la cuota de la clave del `.env` del responsable, consumida por las tres pasadas anteriores.
 - **Qué quedó pendiente:** la pasada completa y limpia de `evals/` que verifica los PR #26 a #29 con el LLM real. El stack quedó detenido (`docker compose stop`).
 - **Propuesta:** el responsable amplía la cuota o el plan de la clave, o espera al reinicio diario de la cuota, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios (con memoria libre suficiente, DUDA-43).
-- **Respuesta:** _Resuelta: el responsable actualizó la `LLM_API_KEY` (2026-11-26). La nueva clave tiene un límite por minuto bajo: los evals se ejecutan con pausa entre preguntas._
+- **Respuesta:** _Resuelta: el responsable actualizó la `LLM_API_KEY` (2026-11-26). Nota del orquestador: la nueva clave tiene un límite por minuto bajo, así que los evals se ejecutan con pausa entre preguntas._
