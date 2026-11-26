@@ -40,13 +40,13 @@ public static class SystemInstructions
 
     /// <summary>
     /// Appended to the instructions of the last call the loop allows (DUDA-29: at most 4 calls per question), so the
-    /// model answers with what it already has instead of asking for more tools. That call only offers
-    /// <c>rechazar</c> (<see cref="Tools.AssistantToolbox.ExitDefinitionsFor"/>).
+    /// model answers with what it already has instead of asking for more tools. That call declares no tool, not even
+    /// <c>rechazar</c> (ESC-COO-08; R-ARQ-04, D-32: the rejection is decided before using data tools).
     /// </summary>
     public const string LastCall = """
 
         ÚLTIMA LLAMADA
-        - Es tu última oportunidad de responder: ya no tienes herramientas de datos, ni `buscar_reglamento`, ni `responder_sin_informacion`. Redacta ya la respuesta final en JSON con los resultados de las herramientas que ya tienes y sus citas. Si lo que se pregunta no aparece en los datos, dilo en la respuesta con los datos. Solo si de verdad ni los fragmentos ni los datos responden la pregunta, responde exactamente "No encuentro esa información en los documentos disponibles." con las citas vacías. `rechazar` sigue disponible solo para sus casos de siempre.
+        - Es tu última oportunidad de responder y ya no tienes ninguna herramienta: ni herramientas de datos, ni `buscar_reglamento`, ni `responder_sin_informacion`, ni `rechazar`. Las herramientas que ya usaste están autorizadas y sus resultados son los que puedes usar: el rechazo ya no aplica en esta llamada. Redacta ya la respuesta final en JSON con los resultados de las herramientas que ya tienes y sus citas. Si lo que se pregunta no aparece en los datos, dilo en la respuesta con los datos. Solo si de verdad ni los fragmentos ni los datos responden la pregunta, responde exactamente "No encuentro esa información en los documentos disponibles." con las citas vacías.
         """;
 
     private const string Common = """

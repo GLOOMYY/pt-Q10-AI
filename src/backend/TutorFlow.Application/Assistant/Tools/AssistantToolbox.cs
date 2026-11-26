@@ -73,17 +73,6 @@ public sealed class AssistantToolbox
         [.. DefinitionsFor(user).Where(t => t.Name != AssistantTools.NoInformation)];
 
     /// <summary>
-    /// Tools offered on the last allowed model call (DUDA-29): only <see cref="AssistantTools.Reject"/>. No later call
-    /// could use the result of a data tool or of <c>buscar_reglamento</c>, so they are not offered and the model must
-    /// answer with what it already has. <c>rechazar</c> stays because it reads no data and keeps the 403 available until
-    /// the end (R-ARQ-04: security is never weaker on the last call).
-    /// </summary>
-    /// <param name="user">The session user.</param>
-    /// <returns>The exit definitions of the user's role.</returns>
-    public static IReadOnlyList<LlmToolDefinition> ExitDefinitionsFor(SessionUser user) =>
-        [.. DefinitionsFor(user).Where(t => t.Name == AssistantTools.Reject)];
-
-    /// <summary>
     /// The fixed 200 answer of a <see cref="AssistantTools.NoInformation"/> call (R-RES-03, R-RES-07). It never reads
     /// any data.
     /// </summary>

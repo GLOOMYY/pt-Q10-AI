@@ -7,7 +7,7 @@ using Xunit;
 namespace TutorFlow.Application.Tests.Assistant;
 
 /// <summary>
-/// Sixth round of F5 corrections: the last allowed call offers no data tool, so a flow with three rounds of tools ends
+/// Sixth round of F5 corrections: the last allowed call offers no tool (eighth round: not even `rechazar`), so a flow with three rounds of tools ends
 /// with the model's answer instead of a 503 (DUDA-29; ESC-COO-08, ESC-COO-09, ESC-INY-14), and an answer that gives
 /// the asked weighted average cites its rule, evaluacion_y_calificaciones.md Sección 4 (ESC-INY-13, R-RES-02).
 /// </summary>
@@ -16,10 +16,9 @@ public class RoundSixTests
     private const string Evaluation = "evaluacion_y_calificaciones.md";
     private const string Regulation = "reglamento_academico_2025.md";
 
-    private static readonly string[] Exits = [AssistantTools.Reject];
-
     // DUDA-29, ESC-COO-08, ESC-COO-09: three rounds of tools, then the fourth (last) call answers: 200, and that call
-    // offers only `rechazar`, never a data tool, buscar_reglamento nor responder_sin_informacion (seventh round).
+    // declares no tool at all: no data tool, buscar_reglamento, responder_sin_informacion (seventh round) nor
+    // `rechazar` (eighth round, ESC-COO-08).
     [Fact]
     public async Task Three_tool_rounds_end_with_the_answer_of_the_fourth_call()
     {
@@ -38,13 +37,13 @@ public class RoundSixTests
         Assert.Equal(4, h.Llm.CallCount);
         Assert.True(answer.UsedStudentData);
         Assert.Contains(new Citation(Regulation, "Artículo 20"), answer.Citations);
-        Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.Empty(h.Llm.Requests[3].Tools);
         Assert.All(h.Llm.Requests.Take(3), r => Assert.Contains(r.Tools, t => t.Name == AssistantTools.AcademicStatus));
     }
 
-    // The student's last call offers only `rechazar`, with its original definition (seventh round).
+    // The student's last call declares no tool (eighth round: `rechazar` is no longer offered there).
     [Fact]
-    public async Task Last_call_of_a_student_offers_only_the_exits()
+    public async Task Last_call_of_a_student_declares_no_tool()
     {
         var h = new AssistantHarness();
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
@@ -55,14 +54,12 @@ public class RoundSixTests
         var answer = await h.AskStudentAsync("¿Cuál es mi promedio?");
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
-        var lastTools = h.Llm.Requests[3].Tools;
-        Assert.Single(lastTools);
-        Assert.All(lastTools, t => Assert.Contains(t, AssistantTools.StudentDefinitions));
-        Assert.DoesNotContain(lastTools, t => t.Name == AssistantTools.SearchRegulations);
+        Assert.Empty(h.Llm.Requests[3].Tools);
+        Assert.All(h.Llm.Requests.Take(3), r => Assert.Contains(r.Tools, t => t.Name == AssistantTools.Reject));
     }
 
     // ESC-INY-14 (seventh round): search → data → a non-offered "no information" call is not run; the model is asked
-    // to write the answer, and the last call, with only `rechazar`, answers with the data already read: 200.
+    // to write the answer, and the last call, with no tool, answers with the data already read: 200.
     [Fact]
     public async Task Non_offered_no_information_before_the_last_call_ends_with_an_answer()
     {
@@ -80,7 +77,7 @@ public class RoundSixTests
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.True(answer.UsedStudentData);
         Assert.Equal(4, h.Llm.CallCount);
-        Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.Empty(h.Llm.Requests[3].Tools);
     }
 
     // Seventh round: `responder_sin_informacion` is not offered on the last call; called anyway, it is not run: 503
@@ -98,7 +95,7 @@ public class RoundSixTests
 
         Assert.Equal(AssistantOutcome.Unavailable, answer.Outcome);
         Assert.Equal(4, h.Llm.CallCount);
-        Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.Empty(h.Llm.Requests[3].Tools);
         Assert.DoesNotContain(AssistantTools.NoInformation, h.Log.Tools);
     }
 
