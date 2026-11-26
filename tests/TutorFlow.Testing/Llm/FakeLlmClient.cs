@@ -153,15 +153,19 @@ public sealed class FakeLlmClient : ILlmClient
                 + "Set EnforceRejectBeforeDataTools to false to script that on purpose.");
         }
 
-        // R-RES-05: cost of the call with the configured prices, not rounded (same formula as the real adapter).
+        // R-RES-05: cost of the call with the configured prices, not rounded (shared LlmCost formula).
         var total = reply.PromptTokens + reply.CandidatesTokens + reply.ThoughtsTokens;
         var usage = new LlmUsage(
             reply.PromptTokens,
             reply.CandidatesTokens,
             reply.ThoughtsTokens,
             total,
-            (reply.PromptTokens * InputPriceUsdPerMTok
-                + (reply.CandidatesTokens + reply.ThoughtsTokens) * OutputPriceUsdPerMTok) / 1_000_000m);
+            LlmCost.Compute(
+                reply.PromptTokens,
+                reply.CandidatesTokens,
+                reply.ThoughtsTokens,
+                InputPriceUsdPerMTok,
+                OutputPriceUsdPerMTok));
         return Task.FromResult(new LlmResponse(reply.Text, reply.ToolCalls, usage));
     }
 }

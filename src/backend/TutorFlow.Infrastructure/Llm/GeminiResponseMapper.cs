@@ -69,7 +69,8 @@ internal static class GeminiResponseMapper
         var total = u.TryGetProperty("totalTokenCount", out var t) && t.ValueKind == JsonValueKind.Number
             ? t.GetInt32()
             : prompt + candidates + thoughts;
-        return LlmCostCalculator.Compute(prompt, candidates, thoughts, total, inputPrice, outputPrice);
+        var cost = LlmCost.Compute(prompt, candidates, thoughts, inputPrice, outputPrice);
+        return new LlmUsage(prompt, candidates, thoughts, total, cost);
     }
 
     private static int Int(JsonElement e, string name) =>

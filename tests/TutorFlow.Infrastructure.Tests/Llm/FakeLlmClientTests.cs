@@ -65,17 +65,6 @@ public sealed class FakeLlmClientTests
         Assert.Equal(0.000475m, response.Usage.CostUsd);
     }
 
-    [Fact]
-    public async Task Usage_MatchesTheRealAdapterCostFormula()
-    {
-        var llm = new FakeLlmClient().Enqueue(FakeLlmReply.FromText("x").WithTokens(1234, 100, 50));
-
-        var response = await llm.CompleteAsync(Request, CancellationToken.None);
-
-        var expected = TutorFlow.Infrastructure.Llm.LlmCostCalculator.Compute(1234, 100, 50, 1384, 0.25m, 1.50m);
-        Assert.Equal(expected, response.Usage);
-    }
-
     private static LlmRequest AfterDataTool() => new(
         "sys",
         [
