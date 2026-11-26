@@ -50,7 +50,7 @@ app.MapHealth();
 app.MapAssistant();
 
 // SPA fallback: any non-/api path returns index.html; unknown /api/* routes keep answering 404.
-app.MapFallbackToFile("{*path:regex(^(?!api(/|$)).*$)}", "index.html");
+app.MapFallbackToFile("{*path:regex(^(?!api(/|$)).*$):nonfile}", "index.html");
 app.Run();
 return 0;
 
