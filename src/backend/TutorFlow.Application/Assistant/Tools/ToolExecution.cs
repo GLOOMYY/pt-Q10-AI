@@ -65,6 +65,19 @@ public sealed class ToolRunState
     private readonly List<ProgramId> _programs = [];
     private readonly List<RuleBacking> _rules = [];
 
+    /// <summary>Creates the state of one request.</summary>
+    /// <param name="question">The validated question of the request (never sent anywhere; used for deterministic
+    /// checks such as an explicit student id, R-SEG-12, or the topic of a general question, R-RES-01).</param>
+    public ToolRunState(string? question = null) => Question = question ?? string.Empty;
+
+    /// <summary>The question of the request.</summary>
+    public string Question { get; }
+
+    /// <summary>
+    /// Whether the model was already asked once to reconsider a "no information" exit after reading data (ESC-RAR-19).
+    /// </summary>
+    public bool NoInformationReconsidered { get; set; }
+
     /// <summary>Whether academic data of a student was consulted to answer (R-RES-04).</summary>
     public bool UsedStudentData { get; private set; }
 
