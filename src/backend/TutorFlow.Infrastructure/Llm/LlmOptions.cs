@@ -38,6 +38,9 @@ public sealed class LlmOptions
     /// <summary>Sampling temperature (R-QA-03: 0 for stable answers).</summary>
     public double Temperature { get; set; }
 
+    /// <summary>Root of the Gemini Developer API. Not read from the environment; tests and evals may override it.</summary>
+    public Uri BaseUrl { get; set; } = new("https://generativelanguage.googleapis.com/");
+
     /// <summary>Problems found while reading the environment (unparsable prices); reported by the validator.</summary>
     public IList<string> BindingErrors { get; } = [];
 
@@ -120,12 +123,13 @@ public sealed class LlmOptionsValidator : IValidateOptions<LlmOptions>
     }
 }
 
-/// <summary>Registration of the LLM settings (the real adapter itself is added in F2).</summary>
+/// <summary>Registration of the LLM settings and of the real adapter.</summary>
 public static class LlmServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="LlmOptions"/> with validation on start-up (R-DEP-02: no key, or an invalid price, and the
-    /// backend does not start).
+    /// backend does not start) and <see cref="TutorFlow.Application.Ports.Llm.ILlmClient"/> as the Gemini adapter
+    /// created by <c>IHttpClientFactory</c> (the fake LLM is only used from <c>tests/</c>).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Configuration (environment variables included).</param>
@@ -137,6 +141,13 @@ public static class LlmServiceCollectionExtensions
             .Configure(o => LlmOptions.Bind(configuration, o))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<LlmOptions>, LlmOptionsValidator>();
+        services.AddHttpClient<TutorFlow.Application.Ports.Llm.ILlmClient, GeminiLlmClient>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<IOptions<LlmOptions>>().Value;
+            client.BaseAddress = options.BaseUrl;
+            // The adapter enforces the timeout itself (R-QA-04) and maps it to a 503; the client one is only a backstop.
+            client.Timeout = options.Timeout + TimeSpan.FromSeconds(5);
+        });
         return services;
     }
 }
