@@ -97,6 +97,8 @@ public class RoundSixTests
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.Empty(answer.Citations);
+        Assert.Equal(4, h.Llm.CallCount);
+        Assert.Equal(Exits, h.Llm.Requests[3].Tools.Select(t => t.Name).Order(StringComparer.Ordinal).ToArray());
     }
 
     // A single allowed call has no results to answer with: it keeps every tool.
