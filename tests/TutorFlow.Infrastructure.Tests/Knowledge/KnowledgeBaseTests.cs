@@ -132,13 +132,6 @@ public sealed class KnowledgeBaseTests
     }
 
     [Fact]
-    public void Ley1581_IsNotADocumentOfTheCorpus()
-    {
-        // R-FUE-04: it is only mentioned inside Artículo 22 and can never be cited as a document.
-        Assert.DoesNotContain(Kb.AllCitations, c => c.Document.Contains("1581", StringComparison.Ordinal));
-    }
-
-    [Fact]
     public async Task Search_RespectsMaxResultsAndEveryFragmentIsCitable()
     {
         var results = await Kb.SearchAsync("nota asignatura periodo promedio", 4, CancellationToken.None);

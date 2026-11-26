@@ -64,4 +64,52 @@ public sealed class FakeLlmClientTests
         Assert.Equal(1150, response.Usage.TotalTokens);
         Assert.Equal(0.000475m, response.Usage.CostUsd);
     }
+
+    [Fact]
+    public async Task Usage_MatchesTheRealAdapterCostFormula()
+    {
+        var llm = new FakeLlmClient().Enqueue(FakeLlmReply.FromText("x").WithTokens(1234, 100, 50));
+
+        var response = await llm.CompleteAsync(Request, CancellationToken.None);
+
+        var expected = TutorFlow.Infrastructure.Llm.LlmCostCalculator.Compute(1234, 100, 50, 1384, 0.25m, 1.50m);
+        Assert.Equal(expected, response.Usage);
+    }
+
+    private static LlmRequest AfterDataTool() => new(
+        "sys",
+        [
+            LlmMessage.User("hola"),
+            LlmMessage.Model(null, [FakeLlmReply.Call("consultar_notas")]),
+            LlmMessage.Tool([new LlmToolResult("consultar_notas", System.Text.Json.JsonSerializer.SerializeToElement(new { }))]),
+        ],
+        []);
+
+    [Fact]
+    public async Task RejectAfterADataToolInAPreviousTurn_FailsByDefault()
+    {
+        var llm = new FakeLlmClient().EnqueueReject("fuera de alcance");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => llm.CompleteAsync(AfterDataTool(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RejectAfterADataTool_IsAllowedWhenTheModeIsOff()
+    {
+        var llm = new FakeLlmClient { EnforceRejectBeforeDataTools = false }.EnqueueReject("fuera de alcance");
+
+        var response = await llm.CompleteAsync(AfterDataTool(), CancellationToken.None);
+
+        Assert.Equal("rechazar", Assert.Single(response.ToolCalls).Name);
+    }
+
+    [Fact]
+    public async Task RejectFirstThenText_IsAlwaysAllowed()
+    {
+        var llm = new FakeLlmClient().EnqueueReject("fuera de alcance");
+
+        var response = await llm.CompleteAsync(Request, CancellationToken.None);
+
+        Assert.Equal("rechazar", Assert.Single(response.ToolCalls).Name);
+    }
 }
