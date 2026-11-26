@@ -71,7 +71,7 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 
 **Dudas registradas:** DUDA-36 (resuelta).
 
-## F5 · Pruebas finales (en curso, detenida por el entorno · 2026-11-26)
+## F5 · Pruebas finales (en curso, detenida por el entorno · estado al 2026-11-26)
 
 **Ejecutado**
 
@@ -83,6 +83,6 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 | 2 | + PR #25 (reintentos) y #26 (instrucciones) | 83 de 145 (1 no ejecutado: cuota) | 17 | 44 | Costo aproximado de la pasada: 0,07 USD. |
 | 3 (parcial) | + PR #27 (salida "sin información", cifras y citas) | 41 de 66 (banco, estudiante, coordinador) | 3 | 22 | `estudiante.md`: los 9 fallos son 503 del proveedor. Cortada por memoria del equipo (DUDA-43). |
 
-**Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) y búsqueda previa antes de responder "sin información" (ESC-BAN-07). Pendiente de verificar con el LLM real.
+**Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) búsqueda previa antes de responder "sin información" (ESC-BAN-07) y motivo de "no habilitable" tomado de Domain (DUDA-42, ESC-EST-03/04). Pendiente de verificar con el LLM real.
 
 **Pendiente:** una pasada completa y limpia de `evals/` (DUDA-43, bloqueante, del responsable).

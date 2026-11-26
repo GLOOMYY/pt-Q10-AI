@@ -444,7 +444,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con el sistema levantado con `docker compose` y la clave del `.env` del responsable, la primera pregunta documental respondió bien (200, cita del Artículo 5, 4 936 tokens). Las siguientes peticiones reciben de Gemini `HTTP 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.` o agotan el timeout de 30 s. El backend responde correctamente 503 sin inventar datos, pero así `evals/` daría fallos falsos en casi todos los escenarios.
 - **Qué quedó pendiente:** ejecutar `evals/` con el LLM real (F5).
 - **Propuesta:** reintentar cuando el proveedor se normalice (el orquestador deja un sondeo periódico). Si persiste, el responsable puede valorar otro `LLM_MODEL` en su `.env` (sin cambiar el SPEC) o ejecutar F5 en otro momento.
-- **Respuesta:** _(pendiente)_
+- **Respuesta:** _(pendiente; continúa en DUDA-43)_
 
 ## DUDA-38 · Ejecución de `evals/` cortada por memoria del equipo
 
@@ -504,7 +504,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** `HabilitationStatus.NotEligible` no dice por qué una asignatura no es habilitable (definitiva < 2.0, pérdida por inasistencia o tipo de asignatura). Application usa un texto neutro salvo para la pérdida por inasistencia, que Domain sí indica.
 - **Qué quedó pendiente:** exponer el motivo desde Domain.
 - **Propuesta:** dominio añade el motivo al resultado de habilitación en una tarea posterior; con los datos actuales no cambia ninguna respuesta.
-- **Respuesta:** _Parte de dominio resuelta: `CourseEvaluation.NotHabilitableReason` (PR #28). Nucleo puede usarlo en lugar del texto neutro en una tarea posterior._
+- **Respuesta:** _Resuelta: Domain expone `CourseEvaluation.NotHabilitableReason` (PR #28) y Application lo usa para explicar el motivo (PR #29)._
 
 ## DUDA-43 · F5 detenida: memoria del equipo y saturación de Gemini
 
