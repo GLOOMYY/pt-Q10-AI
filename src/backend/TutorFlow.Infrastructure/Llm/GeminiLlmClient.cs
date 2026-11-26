@@ -104,7 +104,7 @@ public sealed partial class GeminiLlmClient : ILlmClient
     {
         var message = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            Content = JsonContent.Create(GeminiRequestMapper.ToJson(request)),
+            Content = JsonContent.Create(GeminiRequestMapper.ToJson(request, _options.Model, _options.ThinkingLevel)),
         };
         message.Headers.TryAddWithoutValidation(ApiKeyHeader, _options.ApiKey);
         return message;

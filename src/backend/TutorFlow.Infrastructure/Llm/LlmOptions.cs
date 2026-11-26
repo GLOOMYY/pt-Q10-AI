@@ -20,6 +20,12 @@ public sealed class LlmOptions
     /// <summary>Environment variable with the output price.</summary>
     public const string OutputPriceVariable = "LLM_PRECIO_SALIDA_USD_MTOK";
 
+    /// <summary>Optional environment variable with the thinking level.</summary>
+    public const string ThinkingLevelVariable = "LLM_THINKING_LEVEL";
+
+    /// <summary>Valid thinking levels.</summary>
+    public static readonly string[] ThinkingLevels = ["minimal", "low", "medium", "high"];
+
     /// <summary>LLM API key (<c>LLM_API_KEY</c>). Required; never logged (R-LOG-05).</summary>
     public string ApiKey { get; set; } = string.Empty;
 
@@ -44,6 +50,13 @@ public sealed class LlmOptions
     /// <summary>Sampling temperature (R-QA-03: 0 for stable answers).</summary>
     public double Temperature { get; set; }
 
+    /// <summary>
+    /// Gemini 3 <c>thinkingConfig.thinkingLevel</c> (<c>minimal</c>, <c>low</c>, <c>medium</c>, <c>high</c>); empty omits it.
+    /// Low by default: temperature 0 can make reasoning loop and exhaust the timeout (R-QA-03, R-QA-04).
+    /// Optional <c>LLM_THINKING_LEVEL</c>.
+    /// </summary>
+    public string ThinkingLevel { get; set; } = "low";
+
     /// <summary>Root of the Gemini Developer API. Not read from the environment; tests and evals may override it.</summary>
     public Uri BaseUrl { get; set; } = new("https://generativelanguage.googleapis.com/");
 
@@ -62,6 +75,11 @@ public sealed class LlmOptions
         if (!string.IsNullOrWhiteSpace(configuration[ModelVariable]))
         {
             options.Model = configuration[ModelVariable]!;
+        }
+
+        if (configuration[ThinkingLevelVariable] is { } level)
+        {
+            options.ThinkingLevel = level.Trim();
         }
 
         options.InputPriceUsdPerMTok = ReadPrice(configuration, InputPriceVariable, options.InputPriceUsdPerMTok, options);
@@ -128,6 +146,12 @@ public sealed class LlmOptionsValidator : IValidateOptions<LlmOptions>
         if (options.RetryBackoff < TimeSpan.Zero)
         {
             failures.Add("The LLM retry backoff must not be negative.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ThinkingLevel)
+            && !LlmOptions.ThinkingLevels.Contains(options.ThinkingLevel.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            failures.Add($"{LlmOptions.ThinkingLevelVariable} must be one of minimal, low, medium, high (or empty to omit it).");
         }
 
         if (options.Temperature < 0)
