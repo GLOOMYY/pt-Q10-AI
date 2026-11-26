@@ -2,11 +2,15 @@
 #
 # Jobs:
 #   build-and-test   · builds the solution and runs tests/ with the fake LLM.
+#   frontend         · if src/frontend/package.json exists: npm ci, npm test (non-watch) and
+#                      npm run build. If it does not exist (before F4 is merged) the job passes
+#                      with an explicit notice in the log.
 #   commit-format    · validates format and trailer of every non-merge commit of the PR,
 #                      with the same .githooks/commit-msg script used locally.
 #   compose-smoke    · docker compose up with no manual setup, the backend must be able to
 #                      write the audit volume and contain the corpus documents, then
-#                      GET /api/salud must return 200.
+#                      GET /api/salud must return 200 and, when the frontend exists, GET /
+#                      must return the HTML page (D-14).
 #
 # The LLM key is a fake value: the LLM is a test double in tests/ and in CI (AGENTS §7, §8).
 # Actions are pinned by commit SHA (the version tag is kept in a comment).
@@ -44,6 +48,52 @@ jobs:
 
       - name: Run tests/
         run: dotnet test src/backend/TutorFlow.sln --no-build --nologo
+
+  frontend:
+    name: Frontend (npm ci, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # Before F4 the frontend does not exist in the repository: the job then passes, with a notice.
+      - name: Detect the frontend (src/frontend/package.json)
+        id: detect
+        run: |
+          if [ -f src/frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "src/frontend/package.json found: the frontend checks run."
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::src/frontend/package.json does not exist in this revision: skipping the frontend checks (F4)."
+          fi
+
+      - name: Set up Node.js
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: src/frontend
+        run: npm ci
+
+      # CI=true makes the test runner run once and exit (no watch mode).
+      - name: Run the frontend tests (npm test, non-watch)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: src/frontend
+        env:
+          CI: "true"
+        run: npm test
+
+      - name: Build the frontend (npm run build)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: src/frontend
+        run: npm run build
 
   commit-format:
     name: Commit format and trailer
@@ -120,6 +170,20 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:8080/api/salud)
           echo "GET /api/salud -> $code"
           test "$code" = "200"
+
+      # D-14: the backend also serves the frontend at GET / (fallback to index.html outside /api).
+      # Checked only when the frontend exists in this revision; otherwise skipped with a notice.
+      - name: GET / must return the frontend HTML (only if src/frontend exists)
+        run: |
+          if [ ! -f src/frontend/package.json ]; then
+            echo "::notice::src/frontend/package.json does not exist in this revision: skipping the GET / frontend check (D-14, F4)."
+            exit 0
+          fi
+          code=$(curl -s -o "$RUNNER_TEMP/index.html" -w '%{http_code}' --max-time 10 http://localhost:8080/)
+          echo "GET / -> $code"
+          test "$code" = "200"
+          grep -qi '<html' "$RUNNER_TEMP/index.html" || { echo "::error::GET / did not return HTML"; exit 1; }
+          echo "GET / returns the frontend HTML."
 
       - name: Show container state and logs on failure
         if: failure()
