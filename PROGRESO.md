@@ -8,12 +8,12 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F0b · CI y contenedores | Cerrada | #2 | 2026-11-26 |
 | F1a · Contratos | Cerrada | #4 | 2026-11-26 |
 | F1b · Núcleo | Cerrada | #5, #6, #7, #8, #9, #10 | 2026-11-26 |
-| F2 · Asistente y seguridad | En curso | — | — |
-| F3 · Integración | Pendiente | — | — |
+| F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
+| F3 · Integración | En curso | — | — |
 | F4 · Frontend | Pendiente | — | — |
 | F5 · Pruebas finales | Pendiente | — | — |
 
-PR de documentación del orquestador: #3 (dudas de F0 y este archivo) y el de cierre de F1.
+PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1) y el de cierre de F2.
 
 ## F0 · Esqueleto, CI y contenedores (cerrada el 2026-11-26)
 
@@ -36,3 +36,14 @@ PR de documentación del orquestador: #3 (dudas de F0 y este archivo) y el de ci
 - **F1b · devops (PR #10):** el corpus vigente viaja en la imagen (`KNOWLEDGE_CORPUS_PATH`), comprobado en el smoke de CI; variables opcionales documentadas en `.env.example`; validación estricta del trailer en la CI.
 
 **Dudas registradas:** DUDA-13 a DUDA-22. Pendientes del responsable: DUDA-15 (`usuario.id` ausente o no textual), DUDA-16 y DUDA-18 (variables opcionales nuevas), DUDA-19 a DUDA-21 (criterios de dominio no definidos en el SPEC). Ninguna bloquea.
+
+## F2 · Asistente y seguridad (cerrada el 2026-11-26)
+
+**Entregado**
+
+- **conocimiento (PR #12):** adaptador real de Gemini (`generateContent`) con herramientas, salida estructurada, firmas de razonamiento, temperatura 0, timeout de 30 s, uso de tokens y costo (R-RES-05); 429, 5xx, timeout y red → 503; la clave solo en la cabecera `x-goog-api-key`. La base de conocimiento se carga al arrancar. El LLM falso valida D-32 también entre turnos (configurable).
+- **seguridad (PR #13):** contexto de auditoría por petición, `FileAuditLog` (stdout + `var/auditoria/auditoria.jsonl`, campos exactos de R-LOG-08, sin datos sensibles), middleware con `X-Correlation-Id` en toda respuesta y un único registro por petición (también en 500), log en memoria para pruebas, barrera determinista de nombres e IDs (R-SEG-14) y defensas deterministas de inyección y extracción del sistema sin falsos positivos en los escenarios. Revisor: con bloqueantes (500 sin cabecera) → corregido → sin bloqueantes.
+- **nucleo (PR #14):** caso de uso completo: identidad contra la API (R-SEG-04), autorización determinista de la matriz §4 (sin consultar al estudiante pedido), herramientas por rol con cálculos de Domain y números formateados, `rechazar`, bucle del LLM con límite configurable, validación de citas de documentos y de datos, tokens y costo, 503 sin inventar datos, y `DefenseGuard`, que conecta las defensas de seguridad antes del LLM. Revisor: con bloqueantes (defensas sin conectar) → corregido → sin bloqueantes.
+- **plataforma (PR #15):** `Program.cs` compone auditoría, log de archivo, defensas y `UseAuditTrail()` al inicio del pipeline.
+
+**Dudas registradas:** DUDA-23 a DUDA-32. Pendientes del responsable: DUDA-25, DUDA-26, DUDA-27, DUDA-29, DUDA-30, DUDA-32. Ninguna bloquea.
