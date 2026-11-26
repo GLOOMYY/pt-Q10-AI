@@ -1,0 +1,32 @@
+#!/bin/sh
+# pre-commit · TutorFlow (AGENTS §9.3, §9.4)
+#
+# Builds the solution and runs tests/ with the fake LLM. The commit is rejected if
+# either step fails. POSIX sh, so it runs the same under Git Bash (Windows), Linux
+# and the CI runner. Never bypass it with --no-verify (AGENTS §9.4).
+
+set -u
+
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+cd "$ROOT" || exit 1
+
+SOLUTION="src/backend/TutorFlow.sln"
+
+if ! command -v dotnet >/dev/null 2>&1; then
+  echo "pre-commit: 'dotnet' is not on PATH, the solution cannot be built. Commit rejected." >&2
+  exit 1
+fi
+
+echo "pre-commit: building $SOLUTION" >&2
+if ! dotnet build "$SOLUTION" --nologo -v q; then
+  echo "pre-commit: build failed. Commit rejected." >&2
+  exit 1
+fi
+
+echo "pre-commit: running tests/ (fake LLM)" >&2
+if ! dotnet test "$SOLUTION" --no-build --nologo -v q; then
+  echo "pre-commit: tests failed. Commit rejected." >&2
+  exit 1
+fi
+
+exit 0
