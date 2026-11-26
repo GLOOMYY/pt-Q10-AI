@@ -124,6 +124,38 @@ public class CoordinatorToolsTests
         Assert.Equal("2.65", Text(students[1].GetProperty("promedioPeriodo"), "valor"));
     }
 
+    // ESC-COO-02, ESC-COO-04, ESC-COO-06: the program conclusions name every student of each situation with the figure
+    // and the rule to cite, including the undetermined cases (R-ASI-03).
+    [Fact]
+    public async Task Program_summary_lists_the_conclusions_of_the_program()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.ProgramSummary))
+            .EnqueueText(AssistantHarness.Final("Andrés Martínez (2.28).", ("Datos del programa", "ING-SIS · periodo 2026-2")));
+
+        await h.AskCoordinatorAsync("¿Qué estudiantes de mi programa están en prueba académica?");
+
+        var conclusions = h.ToolResult().GetProperty("conclusionesDelPrograma");
+        var probation = Assert.Single(conclusions.GetProperty("pruebaAcademica").GetProperty("enPruebaAcademica").EnumerateArray());
+        Assert.Equal("Andrés Martínez", Text(probation, "nombre"));
+        Assert.Equal("2.28", Text(probation, "promedio"));
+
+        var scholarship = Assert.Single(conclusions.GetProperty("becaRendimiento").GetProperty("cumplenLosRequisitos").EnumerateArray());
+        Assert.Equal("Laura Gómez", Text(scholarship, "nombre"));
+        Assert.Contains("4.39", Text(scholarship, "detalle"), StringComparison.Ordinal);
+        Assert.Equal("Sección 3.1", Text(conclusions.GetProperty("becaRendimiento").GetProperty("reglaACitar"), "seccion"));
+
+        var absences = conclusions.GetProperty("perdidaPorInasistencia");
+        var lost = Assert.Single(absences.GetProperty("perdieronPorInasistencia").EnumerateArray());
+        Assert.Equal("Andrés Martínez", Text(lost, "nombre"));
+        var course = Assert.Single(lost.GetProperty("asignaturas").EnumerateArray());
+        Assert.Equal("Bases de Datos", Text(course, "asignatura"));
+        Assert.Equal("9 de 48 clases programadas (18.75 %)", Text(course, "inasistencias"));
+        var undetermined = Assert.Single(absences.GetProperty("noDeterminableSinDatoDeInasistencias").EnumerateArray());
+        Assert.Equal("Sofía Herrera", Text(undetermined, "nombre"));
+        Assert.Equal("Artículo 11", Text(absences.GetProperty("reglaACitar"), "seccion"));
+    }
+
     // ESC-COO-11, R-RES-04, D-24: listing the program used to answer is student data, but consults no student.
     [Fact]
     public async Task Listing_the_program_uses_data_but_consults_no_student()
