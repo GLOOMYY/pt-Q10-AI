@@ -9,11 +9,11 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F1a · Contratos | Cerrada | #4 | 2026-11-26 |
 | F1b · Núcleo | Cerrada | #5, #6, #7, #8, #9, #10 | 2026-11-26 |
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
-| F3 · Integración | En curso | — | — |
-| F4 · Frontend | Pendiente | — | — |
+| F3 · Integración | Cerrada | #17 | 2026-11-26 |
+| F4 · Frontend | En curso | — | — |
 | F5 · Pruebas finales | Pendiente | — | — |
 
-PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1) y el de cierre de F2.
+PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2) y el de cierre de F3.
 
 ## F0 · Esqueleto, CI y contenedores (cerrada el 2026-11-26)
 
@@ -47,3 +47,15 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1) y el
 - **plataforma (PR #15):** `Program.cs` compone auditoría, log de archivo, defensas y `UseAuditTrail()` al inicio del pipeline.
 
 **Dudas registradas:** DUDA-23 a DUDA-32. Pendientes del responsable: DUDA-25, DUDA-26, DUDA-27, DUDA-29, DUDA-30, DUDA-32. Ninguna bloquea.
+
+## F3 · Integración (cerrada el 2026-11-26)
+
+**Entregado**
+
+- **integracion (PR #17):** biblioteca `evals/TutorFlow.Scenarios` que lee `escenarios/` con la gramática del README (§6), resuelve los marcadores `<generar: …>` (§3.3) y aplica las reglas de comparación (§4.1), la comprobación global de citas (§4.3) y la tabla `tests/` frente a `evals/` (§4.4).
+  - `tests/TutorFlow.Integration.Tests`: los **145 escenarios `api`** se ejecutan uno a uno contra el backend real en proceso con la API simulada en memoria, el LLM falso guionizado por escenario y el log en memoria. **145 de 145 aprobados, 0 excluidos.** Un escenario sin guion o sin comprobaciones falla de forma visible; los 403 resueltos antes del modelo fallan si se llama al LLM. Pruebas de punta a punta de auditoría (AC-03): `X-Correlation-Id`, un registro por petición con el status real y sin datos sensibles.
+  - `evals/TutorFlow.Evals`: ejecutor de consola contra `docker compose` y el LLM real para F5 (fuera de la CI). Envía su propio `X-Correlation-Id`, lee el registro en `var/auditoria/auditoria.jsonl`, detiene y relevanta `mock-api` para `api-simulada-detenida`, nunca ejecuta `llm-cuota-agotada` y escribe el informe en `var/evals/`. No necesita la clave: comprueba antes con una pregunta real que el backend tiene un LLM operativo.
+  - Revisor: con bloqueantes (el ejecutor exigía la clave en su entorno) → corregido → sin bloqueantes.
+- **Verificación del orquestador:** `docker compose up` sobre `main` con una clave ficticia levanta `mock-api`, `audit-init` y `backend` sanos; `/api/salud` = 200 con `X-Correlation-Id`; un ID inexistente da el 403 exacto de §5.0 y deja un registro de auditoría con los campos de R-LOG-08.
+
+**Dudas registradas:** DUDA-33 a DUDA-35. Pendiente del responsable: DUDA-33. Ninguna bloquea.
