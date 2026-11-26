@@ -190,4 +190,26 @@ public sealed class DeterministicBarrierTests
         Assert.True(verdict.IsAllowed);
         Assert.Empty(api.Calls);
     }
+
+    [Fact]
+    public async Task Particles_and_short_words_of_a_blocked_name_are_not_searched_alone_DUDA_26()
+    {
+        const string json = """
+            {"periodo":"2026-2",
+             "programas":[{"id":"ING-SIS","nombre":"Sistemas","coordinadorId":"COORD-01"}],
+             "coordinadores":[{"id":"COORD-01","nombre":"X Y","programas":["ING-SIS"]}],
+             "estudiantes":[
+               {"id":"EST-001","nombre":"Laura Gómez","programaId":"ING-SIS","semestre":5},
+               {"id":"EST-002","nombre":"María de la Cruz del Los San","programaId":"ING-SIS","semestre":5}],
+             "notas":[],"asistencia":[]}
+            """;
+        var user = User(UserRole.Student, "EST-001");
+
+        Assert.False(await IsBlockedAsync(user, "¿Cuál es la nota mínima de la asignatura?", FakeAcademicApi.FromJson(json)));
+        Assert.False(await IsBlockedAsync(user, "Y de los San del curso, las notas", FakeAcademicApi.FromJson(json)));
+        Assert.True(await IsBlockedAsync(user, "¿Cómo va María?", FakeAcademicApi.FromJson(json)));
+        Assert.True(await IsBlockedAsync(user, "¿Cómo va Cruz?", FakeAcademicApi.FromJson(json)));
+        Assert.True(await IsBlockedAsync(user, "¿Cómo va María de la Cruz del Los San?", FakeAcademicApi.FromJson(json)));
+        Assert.True(await IsBlockedAsync(user, "¿Y EST-002?", FakeAcademicApi.FromJson(json)));
+    }
 }

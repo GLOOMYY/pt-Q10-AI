@@ -14,7 +14,7 @@ namespace TutorFlow.Application.Security.Defenses;
 /// student user: every other student. A coordinator: the students of programs not in their charge (taken from
 /// <c>GET /coordinadores/{id}</c>, API-08). It never contains the user nor, for a coordinator, students of their programs.</para>
 /// <para><b>What is searched:</b> the id, the full name and each word of the name, compared without case, accents or
-/// repeated spaces and as whole words (<c>EST-002</c> is not inside <c>EST-0021</c>). Words that are also part of a name
+/// repeated spaces and as whole words (<c>EST-002</c> is not inside <c>EST-0021</c>). Single words shorter than 3 letters and common name particles (<c>del</c>, <c>las</c>, <c>los</c>, <c>san</c>, <c>von</c>, <c>van</c>...) are not searched on their own (DUDA-26). Words that are also part of a name
 /// the user can see are not searched, so legitimate questions are not rejected. Course codes that look like ids
 /// (<c>EST-103</c>, CL-08) are not students and are never in the list.</para>
 /// <para><b>Audit:</b> every route requested is recorded with <see cref="IRequestAuditContext.RecordResource"/>, but no
@@ -24,6 +24,18 @@ namespace TutorFlow.Application.Security.Defenses;
 /// </remarks>
 public sealed class DeterministicBarrier : IQuestionDefense
 {
+    /// <summary>Words of a name with fewer letters than this are not searched on their own (DUDA-26).</summary>
+    private const int MinimumWordLength = 3;
+
+    /// <summary>
+    /// Closed list of common Spanish and foreign name particles of three or more letters that are not searched on their
+    /// own (DUDA-26). Shorter ones ("de", "la", "y", "e", "da") are already dropped by <see cref="MinimumWordLength"/>.
+    /// </summary>
+    private static readonly HashSet<string> NameParticles = new(StringComparer.Ordinal)
+    {
+        "del", "las", "los", "san", "von", "van", "der", "den", "dos", "das", "mac",
+    };
+
     private readonly IAcademicApi _api;
     private readonly IRequestAuditContext _audit;
 
@@ -106,7 +118,7 @@ public sealed class DeterministicBarrier : IQuestionDefense
             AddIfNotEmpty(terms, TextNormalizer.Normalize(student.Name));
             foreach (var word in Words(student.Name))
             {
-                if (!visibleWords.Contains(word))
+                if (IsSearchableWord(word) && !visibleWords.Contains(word))
                 {
                     terms.Add(word);
                 }
@@ -147,6 +159,14 @@ public sealed class DeterministicBarrier : IQuestionDefense
         user.Role == UserRole.Student
             ? string.Equals(student.Id, user.Id, StringComparison.OrdinalIgnoreCase)
             : programsInCharge.Contains(studentProgram.Value);
+
+    /// <summary>
+    /// Whether a normalized word of a name is searched on its own (DUDA-26, R-SEG-14): words shorter than
+    /// <see cref="MinimumWordLength"/> letters and the closed list of common name particles are ignored, so a name such as
+    /// "María de la Cruz" does not block ordinary questions. The id and the full name are always searched.
+    /// </summary>
+    private static bool IsSearchableWord(string word) =>
+        word.Length >= MinimumWordLength && !NameParticles.Contains(word);
 
     private static string[] Words(string name) =>
         TextNormalizer.Normalize(name).Split(' ', StringSplitOptions.RemoveEmptyEntries);
