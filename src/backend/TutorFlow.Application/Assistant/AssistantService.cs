@@ -289,6 +289,9 @@ public sealed partial class AssistantService : IAssistantService
             return AssistantAnswer.Unavailable(tokens, cost);
         }
 
+        // R-RES-04: a listed roster counts as data used only if this answer uses it (decided before the citations, so
+        // a roster that was not used is not cited either, R-RES-02).
+        state.ResolveRosterUse(proposed.Text);
         var validated = _citations.Validate(proposed, state);
         return AssistantAnswer.Answered(validated.Text, validated.Citations, state.UsedStudentData, tokens, cost);
     }

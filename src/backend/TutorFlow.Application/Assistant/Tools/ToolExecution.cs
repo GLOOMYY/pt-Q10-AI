@@ -62,8 +62,19 @@ public sealed record RuleBacking(Citation Citation, string Trigger);
 /// </summary>
 public sealed class ToolRunState
 {
+    // Normalized word prefixes of a QUESTION that asks about the students or the program itself, so a roster can
+    // answer it (R-RES-04); "est-" is a student id.
+    private static readonly string[] RosterQuestionPrefixes =
+    [
+        "estudiant", "alumn", "programa", "carrera", "list", "quien", "matriculad", "inscrit", "est-",
+    ];
+
+    // Whole normalized words of a QUESTION that asks how many students there are.
+    private static readonly string[] RosterQuestionWords = ["cuantos", "cuantas"];
+
     private readonly List<ProgramId> _programs = [];
     private readonly List<RuleBacking> _rules = [];
+    private readonly List<(ProgramId Program, IReadOnlyList<StudentRecord> Students)> _rosters = [];
 
     /// <summary>Creates the state of one request.</summary>
     /// <param name="question">The validated question of the request (never sent anywhere; used for deterministic
@@ -121,6 +132,61 @@ public sealed class ToolRunState
         UsedStudentData = true;
         UsedOwnGrades = true;
         UsedOwnAttendance = true;
+    }
+
+    /// <summary>
+    /// Records a roster of a program listed by <c>listar_estudiantes_programa</c>. It does not count as data used yet:
+    /// R-RES-04 counts a listing only when it is used to answer, which <see cref="ResolveRosterUse"/> decides with the
+    /// final answer.
+    /// </summary>
+    /// <param name="programId">The program.</param>
+    /// <param name="students">The roster returned to the model.</param>
+    public void RecordRoster(ProgramId programId, IReadOnlyList<StudentRecord> students)
+    {
+        ArgumentNullException.ThrowIfNull(programId);
+        ArgumentNullException.ThrowIfNull(students);
+        _rosters.Add((programId, students));
+    }
+
+    /// <summary>
+    /// R-RES-04 (ESC-COO-11, ESC-COO-12): a listed roster is used to answer when the question asks about the students
+    /// or the program (e.g. "¿Qué estudiantes hay en mi programa?"), or when the final answer names one of its students
+    /// (id, full name or first name) or gives its number of students. Only then its program counts as data used (and
+    /// may be cited, R-RES-02). A roster listed for a question it cannot answer (e.g. a coordinator's "¿Cuál es mi
+    /// promedio?") does not. The audit log is not affected: it keeps every call really made (R-LOG-04).
+    /// </summary>
+    /// <param name="answerText">The final answer proposed by the model.</param>
+    public void ResolveRosterUse(string? answerText)
+    {
+        if (_rosters.Count == 0)
+        {
+            return;
+        }
+
+        var questionWords = TextNormalizer.Words(Question);
+        var asksAboutRoster = questionWords.Any(w =>
+            RosterQuestionWords.Contains(w) || RosterQuestionPrefixes.Any(k => w.StartsWith(k, StringComparison.Ordinal)));
+        var answerWords = TextNormalizer.Words(answerText);
+        var total = _rosters.Sum(r => r.Students.Count);
+        foreach (var (program, students) in _rosters)
+        {
+            if (asksAboutRoster
+                || students.Any(s => Mentions(answerWords, s))
+                || answerWords.Contains(students.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                || answerWords.Contains(total.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            {
+                MarkProgramData(program);
+            }
+        }
+
+        _rosters.Clear();
+    }
+
+    private static bool Mentions(IReadOnlyList<string> answerWords, StudentRecord student)
+    {
+        var name = TextNormalizer.Words(student.Name);
+        return (name.Count > 0 && (name.All(answerWords.Contains) || answerWords.Contains(name[0])))
+            || TextNormalizer.Words(student.Id).All(answerWords.Contains);
     }
 
     /// <summary>Records that a coordinator used data of a program (a roster or a student of it).</summary>
