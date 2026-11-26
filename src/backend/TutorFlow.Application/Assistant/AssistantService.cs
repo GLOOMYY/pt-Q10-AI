@@ -124,6 +124,7 @@ public sealed partial class AssistantService : IAssistantService
     {
         var instructions = SystemInstructions.Build(user);
         var tools = AssistantToolbox.DefinitionsFor(user);
+        var exitTools = AssistantToolbox.ExitDefinitionsFor(user);
         var messages = new List<LlmMessage> { LlmMessage.User(question) };
         var state = new ToolRunState(question);
         var tokens = 0;
@@ -133,10 +134,18 @@ public sealed partial class AssistantService : IAssistantService
         {
             for (var call = 0; call < _options.MaxLlmCalls; call++)
             {
-                // DUDA-29: with a small limit, the last allowed call asks for the final answer instead of more tools.
+                // DUDA-29: with a small limit, the last allowed call asks for the final answer instead of more tools,
+                // and offers no data tool nor buscar_reglamento (only the exits that read no data), so the model has to
+                // answer with the results it already has; that answer goes through the normal citation validation.
+                // A single allowed call keeps every tool: there are no results yet to answer with.
                 var isLastCall = call == _options.MaxLlmCalls - 1;
-                var callInstructions = isLastCall && call > 0 ? instructions + SystemInstructions.LastCall : instructions;
-                var request = new LlmRequest(callInstructions, [.. messages], tools, Temperature, ModelAnswer.Schema);
+                var finalCall = isLastCall && call > 0;
+                var request = new LlmRequest(
+                    finalCall ? instructions + SystemInstructions.LastCall : instructions,
+                    [.. messages],
+                    finalCall ? exitTools : tools,
+                    Temperature,
+                    ModelAnswer.Schema);
                 var response = await _llm.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
 
                 // R-RES-05: every call made for this question counts, whatever the final outcome.
@@ -149,8 +158,9 @@ public sealed partial class AssistantService : IAssistantService
                 }
 
                 // DUDA-29: on the last allowed call no later call could use a tool result, so a turn that still asks for
-                // tools (other than the exits `rechazar` and `responder_sin_informacion`) is not run: no API call and
-                // nothing logged as consulted. The request ends with the 503 of an exhausted loop.
+                // tools (other than the exits `rechazar` and `responder_sin_informacion`), even ones that were not
+                // offered, is not run: no API call and nothing logged as consulted. The request ends with the 503 of an
+                // exhausted loop.
                 if (isLastCall
                     && response.ToolCalls.All(c => c.Name != AssistantTools.Reject)
                     && response.ToolCalls.Any(c => c.Name != AssistantTools.NoInformation))

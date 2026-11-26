@@ -29,12 +29,13 @@ public static class SystemInstructions
 
     /// <summary>
     /// Appended to the instructions of the last call the loop allows (DUDA-29: at most 4 calls per question), so the
-    /// model answers with what it already has instead of asking for more tools.
+    /// model answers with what it already has instead of asking for more tools. That call only offers the exits
+    /// (<see cref="Tools.AssistantToolbox.ExitDefinitionsFor"/>).
     /// </summary>
     public const string LastCall = """
 
         ÚLTIMA LLAMADA
-        - Es tu última oportunidad de responder: no llames a más herramientas de datos ni a `buscar_reglamento`. Devuelve ya la respuesta final en JSON con los resultados de las herramientas que ya tienes y sus citas.
+        - Es tu última oportunidad de responder: ya no tienes herramientas de datos ni `buscar_reglamento`. Devuelve ya la respuesta final en JSON con los resultados de las herramientas que ya tienes y sus citas. `rechazar` y `responder_sin_informacion` siguen disponibles solo para sus casos de siempre.
         """;
 
     private const string Common = """
