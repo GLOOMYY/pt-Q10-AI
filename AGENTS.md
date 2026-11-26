@@ -211,10 +211,10 @@ Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o d
 | --- | --- |
 | Compilar la solución | `dotnet build src/backend/TutorFlow.sln` |
 | Ejecutar `tests/` (LLM falso) | `dotnet test src/backend/TutorFlow.sln` |
-| Instalar dependencias del frontend | `cd src/frontend && npm ci` (usa `package-lock.json`). |
-| Ejecutar las pruebas del frontend | `cd src/frontend && npm test` (una sola ejecución, sin modo watch). |
-| Construir el frontend | `cd src/frontend && npm run build`. Deja la salida en `src/frontend/dist/`; el Dockerfile la copia a `wwwroot`. |
-| Servidor de desarrollo del frontend | `cd src/frontend && npm run dev`. Solo para desarrollar; sigue el enlace que imprime Vite. |
+| Instalar dependencias del frontend | `npm --prefix src/frontend ci` (usa `package-lock.json`). |
+| Ejecutar las pruebas del frontend | `npm --prefix src/frontend test` (una sola ejecución, sin modo watch). |
+| Construir el frontend | `npm --prefix src/frontend run build`. Deja la salida en `src/frontend/dist/`; el Dockerfile la copia a `wwwroot`. |
+| Servidor de desarrollo del frontend | `npm --prefix src/frontend run dev`. Solo para desarrollar; sigue el enlace que imprime Vite. |
 | Listar los escenarios de `evals/` (sin red ni clave) | `dotnet run --project evals/TutorFlow.Evals -c Release -- --list` |
 | Ejecutar `evals/` (LLM real) | Solo en F5 · Pruebas finales, con el sistema levantado (`docker compose up -d --build --wait`): `dotnet run --project evals/TutorFlow.Evals -c Release`. La clave real va en el `.env` del stack; el ejecutor no la lee ni la necesita. Opciones y requisitos en `evals/README.md`. |
 | Preparar la configuración local | `cp .env.example .env` y pon tu `LLM_API_KEY` real. El `.env` no se versiona. |
