@@ -480,7 +480,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el hook `pre-commit` falló una vez en 1 de las 197 pruebas de integración y pasó al repetirlo. El orquestador ejecutó la suite 3 veces sobre `main` (197/197 en las tres) sin reproducirlo. El equipo estaba con poca memoria en ese momento (DUDA-38).
 - **Qué quedó pendiente:** identificar la prueba si vuelve a fallar.
 - **Propuesta:** si reaparece, asignar a integracion su diagnóstico con el nombre exacto de la prueba y el error; no se marca ni se salta ninguna prueba.
-- **Respuesta:** _Respuesta del responsable (2026-11-26): «ya liberé memoria». Nota del orquestador: la prueba no se ha vuelto a reproducir._
+- **Respuesta:** _Respuesta del responsable (2026-11-26): «ya liberé memoria». Resuelta en el PR #46: la prueba `The_record_has_the_fields_of_R_LOG_08_and_nothing_sensitive` buscaba "4.1" también en `timestamp` y fallaba cuando la hora contenía esos dígitos (falso positivo de la prueba); ahora el barrido excluye `timestamp` y los campos numéricos, como escenarios/README §5.3._
 
 ## DUDA-41 · ESC-INY-04: Output esperado 200 frente a la nota "si se detecta, 403"
 
@@ -576,4 +576,28 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con la clave nueva, la quinta pasada recorrió 138 escenarios: 113 aprobados, 1 no ejecutado por diseño (cuota, solo en `tests/`), 2 fallos reales (ESC-CIT-01 y ESC-COO-04, corregidos después en el PR #37) y 22 respuestas 503 por el límite de la clave. Al reintentar esos 22 y `simulacion.md` (7), Gemini respondió `HTTP 429: You exceeded your current quota` de forma persistente (17 respuestas 429 y 4 sondeos fallidos en 8 minutos).
 - **Qué quedó pendiente:** ejecutar los 22 escenarios con 503, `simulacion.md` y la verificación del PR #37 con el LLM real.
 - **Propuesta:** el responsable amplía la cuota de la clave o espera a su reinicio, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo> --delay-ms 20000` (la pausa evita el límite por minuto).
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-49 · Documentos protegidos que aún exigen solo `Generado-por: Claude Code`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** devops / devops/trailer-humano (PR #39)
+- **Referencia:** AGENTS §9.2, §9.4, §12.6, CLAUDE §6, `.claude/agents/*.md`
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** a petición del responsable, el hook `commit-msg` y la CI aceptan ahora `Generado-por: Claude Code` o `Generado-por: Humano` (este último solo para commits del responsable). AGENTS §9.2, §9.4 y §12.6, CLAUDE §6 y las definiciones de `.claude/agents/` siguen diciendo que todo commit lleva `Generado-por: Claude Code`. Son archivos protegidos fuera del área de cualquier rol. El hook no puede saber quién hace el commit: que `Humano` sea solo del responsable depende de la documentación y de la revisión.
+- **Qué quedó pendiente:** actualizar esas secciones.
+- **Propuesta:** el responsable actualiza AGENTS §9.2 (y §9.4, §12.6) y CLAUDE §6 para reflejar los dos valores y que la fábrica siempre usa `Generado-por: Claude Code`.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-50 · Variable `LLM_THINKING_LEVEL` y nivel de razonamiento de Gemini
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** conocimiento / conocimiento/thinking (PR #45)
+- **Referencia:** R-QA-03, R-QA-04, R-DEP-02, ESC-SIM-09
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** con temperatura 0 (R-QA-03), la primera llamada de ESC-SIM-09 agotaba el timeout de 30 s de forma reproducible (5 de 5 intentos). El adaptador envía ahora `generationConfig.thinkingConfig.thinkingLevel` = `low` a los modelos Gemini 3, configurable con la variable opcional `LLM_THINKING_LEVEL` (`minimal`, `low`, `medium`, `high`; vacía lo omite). Verificado con el LLM real: ESC-SIM-09 pasa a responder 200 en unos 8 s. La variable no está en R-DEP-02 ni en `.env.example`.
+- **Qué quedó pendiente:** documentarla en `.env.example` (devops) y, si el responsable lo desea, en R-DEP-02.
+- **Propuesta:** mantener `low` por defecto; devops la documenta como opcional.
 - **Respuesta:** _(pendiente del responsable)_

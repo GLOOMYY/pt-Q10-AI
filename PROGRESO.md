@@ -11,7 +11,7 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
 | F3 · Integración | Cerrada | #17 | 2026-11-26 |
 | F4 · Frontend | Cerrada | #19, #20, #21 | 2026-11-26 |
-| F5 · Pruebas finales | En curso (bloqueada: DUDA-48, cuota) | #23–#37 | — |
+| F5 · Pruebas finales | Cerrada por congelación del alcance (ver nota) | #23–#46 | 2026-11-26 |
 
 PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2), #18 (cierre de F3), #22 (cierre de F4) y el del estado de F5.
 
@@ -88,3 +88,17 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 **Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) búsqueda previa antes de responder "sin información" (ESC-BAN-07) y motivo de "no habilitable" tomado de Domain (DUDA-42, ESC-EST-03/04). Pendiente de verificar con el LLM real.
 
 **Pendiente:** ejecutar con el LLM real los 22 escenarios que recibieron 503 por cuota, `simulacion.md` y la verificación del PR #37 (DUDA-48, bloqueante, del responsable: cuota de la clave). Rondas de corrección cerradas: PR #26, #27, #29, #35 y #37 (nucleo), #25 y #36 (conocimiento), #34 (seguridad), #33 (devops); dudas pendientes de decisión: DUDA-05, DUDA-11, DUDA-46 y DUDA-47.
+
+## F5 · Cierre por congelación del alcance (2026-11-26)
+
+El responsable congeló el alcance. Estado final de las pruebas con el LLM real (Gemini) sobre `main`:
+
+- **Última pasada completa** (código hasta el PR #44, con reejecución de los 503 por límite de la clave): **141 de 145 aprobados**; 1 escenario no se ejecuta por diseño (`llm-cuota-agotada`, solo en `tests/`).
+- Fallos restantes de esa pasada y su estado:
+  - ESC-COO-10, ESC-COO-12 y ESC-SIM-09: corregidos en el PR #44. ESC-COO-10 y ESC-COO-12 pasaron al verificarlos con Gemini.
+  - ESC-SIM-09: agotaba el timeout de 30 s por un bucle de razonamiento con temperatura 0. Corregido en el PR #45 (`thinkingLevel` = `low`, DUDA-50) y verificado con Gemini (200 en unos 8 s, con sus citas).
+- **Sin verificar con Gemini tras el PR #45:** la pasada completa de regresión con el nuevo nivel de razonamiento no se pudo ejecutar porque la cuota de la clave volvió a agotarse (429) y luego se congeló el alcance. En `tests/` (LLM falso) pasan los 145 escenarios `api` y los 24 unitarios.
+- **Rondas de corrección de F5:** PR #25 y #45 (conocimiento: reintentos y nivel de razonamiento), #26, #27, #29, #35, #37, #41, #42, #43 y #44 (nucleo: uso de `rechazar`, salida sin información, cifras, citas, límite de 4 llamadas, nombre de pila → ID), #34 (seguridad: partículas en la barrera), #33 y #40 (devops: `.env.example`), #36 (conocimiento: búsqueda con raíces), #39 (devops: trailer `Generado-por: Humano`) y #46 (integracion: prueba intermitente de DUDA-40).
+- **Costo aproximado de todas las pasadas de evals:** menos de 0,30 USD.
+
+**Pendientes del responsable** (`dudas.md`): DUDA-05 (protección de `main`), DUDA-11 (incidente `taskkill`), DUDA-46 y DUDA-47 (citas fuera de tema retiradas), DUDA-49 (AGENTS §9.2 y CLAUDE §6 frente al trailer `Humano`) y DUDA-50 (variable `LLM_THINKING_LEVEL`). Recomendación: ejecutar una pasada completa de `evals/` cuando la cuota lo permita para confirmar que el PR #45 no introduce regresiones.
