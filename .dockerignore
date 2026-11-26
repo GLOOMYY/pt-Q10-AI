@@ -43,3 +43,8 @@ docker-compose.yml
 **/.vs/
 **/node_modules/
 **/dist/
+
+# Frontend (F4): the frontend stage installs and builds its own dependencies and dist/,
+# so the host copies never enter the build context.
+src/frontend/node_modules/
+src/frontend/dist/

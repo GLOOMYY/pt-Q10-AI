@@ -211,7 +211,12 @@ Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o d
 | --- | --- |
 | Compilar la solución | `dotnet build src/backend/TutorFlow.sln` |
 | Ejecutar `tests/` (LLM falso) | `dotnet test src/backend/TutorFlow.sln` |
-| Ejecutar `evals/` (LLM real) | Todavía no existe: `evals/` se crea en F3 y solo se ejecuta en F5 · Pruebas finales. |
+| Instalar dependencias del frontend | `npm --prefix src/frontend ci` (usa `package-lock.json`). |
+| Ejecutar las pruebas del frontend | `npm --prefix src/frontend test` (una sola ejecución, sin modo watch). |
+| Construir el frontend | `npm --prefix src/frontend run build`. Deja la salida en `src/frontend/dist/`; el Dockerfile la copia a `wwwroot`. |
+| Servidor de desarrollo del frontend | `npm --prefix src/frontend run dev`. Solo para desarrollar; sigue el enlace que imprime Vite. |
+| Listar los escenarios de `evals/` (sin red ni clave) | `dotnet run --project evals/TutorFlow.Evals -c Release -- --list` |
+| Ejecutar `evals/` (LLM real) | Solo en F5 · Pruebas finales, con el sistema levantado (`docker compose up -d --build --wait`): `dotnet run --project evals/TutorFlow.Evals -c Release`. La clave real va en el `.env` del stack; el ejecutor no la lee ni la necesita. Opciones y requisitos en `evals/README.md`. |
 | Preparar la configuración local | `cp .env.example .env` y pon tu `LLM_API_KEY` real. El `.env` no se versiona. |
 | Levantar el sistema | `docker compose up --build`. Frontend y API en `http://localhost:8080`. |
 | Comprobar que levanta | `curl http://localhost:8080/api/salud` debe responder `200`. |
@@ -220,7 +225,7 @@ Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o d
 | Validar un mensaje de commit a mano | `sh .githooks/commit-msg <archivo-con-el-mensaje>`. Con `--strict` (como en la CI) no se eliminan las líneas que empiezan por `#`: `sh .githooks/commit-msg --strict <archivo>` |
 
 - El `pre-commit` compila la solución y ejecuta `tests/`. El `commit-msg` valida el formato y el trailer `Generado-por: Claude Code`. Los commits de merge están exentos.
-- La CI (`.github/workflows/ci.yml`) repite estas comprobaciones en cada PR a `main`.
+- La CI (`.github/workflows/ci.yml`) repite estas comprobaciones en cada PR a `main`, con el frontend (`npm ci`, `npm test`, `npm run build`, si existe `src/frontend`) y el smoke de `docker compose` (`/api/salud`, y `/` si existe el frontend). `evals/` no corre en CI.
 
 ## 12. Definición de terminado
 

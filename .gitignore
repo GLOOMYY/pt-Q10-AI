@@ -3,8 +3,9 @@
 .env.*
 !.env.example
 
-# Runtime data, such as the audit log (R-LOG-07).
+# Runtime data, such as the audit log (R-LOG-07). var/evals/ (reports of evals/) is covered by var/.
 var/
+var/evals/
 
 # .NET build artifacts (AGENTS §6).
 bin/
