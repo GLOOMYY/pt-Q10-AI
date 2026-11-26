@@ -219,6 +219,12 @@ public sealed class AssistantToolbox
         {
             result["notaAcumulada"] = NumberFormat.Average(accumulated.Value);
             result["porcentajeEvaluado"] = accumulated.EvaluatedPercent.ToString(CultureInfo.InvariantCulture) + " %";
+            if (simulation.Result.Grade is { } needed)
+            {
+                // R-RES-02: the answer shows the data the projection starts from, not only the result.
+                result["resumen"] = $"nota acumulada {NumberFormat.Average(accumulated.Value)} con el {accumulated.EvaluatedPercent.ToString(CultureInfo.InvariantCulture)} % evaluado; "
+                    + $"necesita {NumberFormat.Grade(needed)} en cada corte pendiente para alcanzar {NumberFormat.Grade(target)} (proyección, no nota oficial)";
+            }
         }
 
         // R-CAL-11: a simulation cites Evaluación §2-3, plus the rule of its special outcome (R-RES-02: data + rule).
@@ -401,6 +407,7 @@ public sealed class AssistantToolbox
         }
 
         var students = new JsonArray();
+        var evaluated = new List<(StudentRecord, StudentEvaluation, IReadOnlyList<AttendanceRecord>?)>();
         foreach (var programId in programs)
         {
             var roster = await _directory.GetProgramStudentsAsync(programId, cancellationToken).ConfigureAwait(false) ?? [];
@@ -420,12 +427,14 @@ public sealed class AssistantToolbox
 
                 var data = await LoadAsync(user, access, state, cancellationToken).ConfigureAwait(false);
                 students.Add(StudentReport.Build(access.Record, data.Evaluation, data.Attendance));
+                evaluated.Add((access.Record, data.Evaluation, data.Attendance));
             }
         }
 
         state.Period ??= await _directory.GetPeriodAsync(cancellationToken).ConfigureAwait(false);
         return Completed(new JsonObject
         {
+            ["conclusionesDelPrograma"] = StudentReport.ProgramConclusions(evaluated),
             ["estudiantes"] = students,
             ["citasDatos"] = ProgramCitationsJson(programs, state.Period),
         });
