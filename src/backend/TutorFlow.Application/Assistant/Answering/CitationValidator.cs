@@ -86,6 +86,7 @@ public sealed partial class CitationValidator
         }
 
         RemoveOffTopicAbsences(valid, state);
+        RemoveOffTopicNonHabilitable(valid, state);
         AddBackedRules(TextNormalizer.Normalize(proposed.Text), valid, state);
         AddCutWeights(proposed.Text, valid);
         return new ValidatedAnswer(proposed.Text, valid);
@@ -110,6 +111,28 @@ public sealed partial class CitationValidator
         }
 
         valid.Remove(absences);
+    }
+
+    /// <summary>
+    /// R-RES-01, ESC-CIT-01: a general question about habilitation ("¿Desde qué nota puedo habilitar una asignatura?":
+    /// the answer cites "Artículo 6", no student data were read and the question does not ask about the courses that
+    /// cannot be habilitated) is answered by Artículo 6 alone, so an "Artículo 7" citation the model added is removed.
+    /// Same criterion as <see cref="RemoveOffTopicAbsences"/> (DUDA-44): only the citation list changes, the text written
+    /// by the model is never edited (R-ARQ-03), and the rule can only remove, never add, a citation. With student data
+    /// Artículo 7 is kept: a lost course of the data may be non-habilitable (StudentReport asks for it then).
+    /// </summary>
+    private static void RemoveOffTopicNonHabilitable(List<Citation> valid, ToolRunState state)
+    {
+        var nonHabilitable = new Citation(RegulationDocument, "Artículo 7");
+        if (state.UsedStudentData
+            || !valid.Contains(nonHabilitable)
+            || !valid.Contains(new Citation(RegulationDocument, "Artículo 6"))
+            || NonHabilitableTopicPattern().IsMatch(TextNormalizer.Normalize(state.Question)))
+        {
+            return;
+        }
+
+        valid.Remove(nonHabilitable);
     }
 
     /// <summary>
@@ -226,4 +249,9 @@ public sealed partial class CitationValidator
     [GeneratedRegex(@"\b(inasistencia|asistencia|falt|falla|ausencia)", RegexOptions.CultureInvariant, 1000)]
     private static partial Regex AttendancePattern();
 
+    // Normalized words of a QUESTION that asks about the courses that cannot be habilitated (Artículo 7): a negation
+    // ("no se puede habilitar", "no habilitable"), "cuáles/qué asignaturas", "cualquier/todas", exceptions, practicums,
+    // degree projects or attendance. Short words need a closing boundary ("no" must not match "nota").
+    [GeneratedRegex(@"\b(no|ninguna|nunca|cualquier|todas?)\b|\b(cuales|que)\s+(asignaturas|materias)\b|\b(excep|exclu|restric|practica|pasantia|trabajo\s+de\s+grado|tesis|inasistencia|asistencia|falt|falla|ausencia)", RegexOptions.CultureInvariant, 1000)]
+    private static partial Regex NonHabilitableTopicPattern();
 }
