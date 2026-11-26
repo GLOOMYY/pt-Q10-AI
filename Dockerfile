@@ -46,6 +46,12 @@ COPY --from=build /app ./
 # Static frontend served from the same origin (D-14). Empty until F4.
 COPY --from=frontend /out/ ./wwwroot/
 
+# Reglamento corpus read by the knowledge base (R-FUE-01). .dockerignore lets only the three
+# indexed files through; the loader reads them from KNOWLEDGE_CORPUS_PATH.
+COPY material/reglamento/ ./material/reglamento/
+# Explicit corpus location (a path, not a secret). Overridable from .env, see .env.example.
+ENV KNOWLEDGE_CORPUS_PATH=/app/material/reglamento
+
 # Audit directory (R-LOG-07). docker-compose.yml mounts ./var/auditoria over it.
 # Relative to WORKDIR, i.e. var/auditoria inside /app.
 RUN mkdir -p /app/var/auditoria && chown app:app /app/var/auditoria

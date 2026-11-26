@@ -18,7 +18,15 @@ var/
 tests/
 evals/
 escenarios/
-material/
+# material/: only the reglamento corpus read by the knowledge base (R-FUE-01) enters the image.
+# Exclude the children of material/ one level deep, then re-include the reglamento folder and
+# only its three indexed files (reglamento_academico_2023.md stays out, D-01).
+material/*
+!material/reglamento
+material/reglamento/*
+!material/reglamento/reglamento_academico_2025.md
+!material/reglamento/evaluacion_y_calificaciones.md
+!material/reglamento/bienestar_y_becas.md
 SPEC.md
 AGENTS.md
 CLAUDE.md

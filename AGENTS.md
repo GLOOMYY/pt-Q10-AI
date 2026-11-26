@@ -217,7 +217,7 @@ Comandos reales del repositorio. Se ejecutan desde la raíz del repositorio (o d
 | Comprobar que levanta | `curl http://localhost:8080/api/salud` debe responder `200`. |
 | Parar el sistema | `docker compose down` |
 | Activar los git hooks | `git config core.hooksPath .githooks` (una vez por clon; lo comparten todos los worktrees). |
-| Validar un mensaje de commit a mano | `sh .githooks/commit-msg <archivo-con-el-mensaje>` |
+| Validar un mensaje de commit a mano | `sh .githooks/commit-msg <archivo-con-el-mensaje>`. Con `--strict` (como en la CI) no se eliminan las líneas que empiezan por `#`: `sh .githooks/commit-msg --strict <archivo>` |
 
 - El `pre-commit` compila la solución y ejecuta `tests/`. El `commit-msg` valida el formato y el trailer `Generado-por: Claude Code`. Los commits de merge están exentos.
 - La CI (`.github/workflows/ci.yml`) repite estas comprobaciones en cada PR a `main`.
