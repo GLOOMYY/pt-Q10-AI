@@ -3869,7 +3869,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_escenari…)
+      <sesión>/scratchpad/gen_escenari…)
   ⎿  {
        "estudiante.md": 29,
        "coordinador.md": 20,
@@ -4009,7 +4009,7 @@
   Recalculé todos los números de los escenarios con un script aparte, usando
   `decimal` y redondeo mitad hacia arriba
   (`<temp-claude>
-  -9c93-48e4bbe0e596\scratchpad\calc.py`). Todas las definitivas, promedios,
+  <sesión>\scratchpad\calc.py`). Todas las definitivas, promedios,
   acumuladas, límites del 15 %, simulaciones e IDs de log coinciden con
   datos.json y con §6.10. Lo único mal eran tres explicaciones en las notas, no
   los valores esperados.
@@ -4218,7 +4218,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_escenari…)
+      <sesión>/scratchpad/gen_escenari…)
   ⎿  {
        "estudiante.md": 29,
        "coordinador.md": 20,
@@ -5505,7 +5505,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_escenari…)
+      <sesión>/scratchpad/gen_escenari…)
   ⎿  {
        "estudiante.md": 29,
        "coordinador.md": 20,
@@ -5839,7 +5839,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I -
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_escena…)
+      <sesión>/scratchpad/gen_escena…)
   ⎿  {
        "estudiante.md": 33,
        "coordinador.md": 23,
@@ -6816,7 +6816,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_agents.p…)
+      <sesión>/scratchpad/gen_agents.p…)
   ⎿  ['conocimiento.md', 'datos.md', 'devops.md', 'dominio.md', 'frontend.m
      d', 'integracion.md', 'nucleo.md', 'plataforma.md', 'revisor.md', 'seg
      uridad.md']
@@ -9395,7 +9395,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" && python -I
       "<temp-claude>
-      e6a-9c93-48e4bbe0e596/scratchpad/gen_agents.p…)
+      <sesión>/scratchpad/gen_agents.p…)
   ⎿  ['conocimiento.md', 'datos.md', 'devops.md', 'dominio.md', 'frontend.m
      d', 'integracion.md', 'nucleo.md', 'plataforma.md', 'revisor.md', 'seg
      uridad.md']
@@ -9813,7 +9813,7 @@
   No quedó nada sin aplicar. En `entradas.md` y `citas.md` solo cambió el texto
   de la intro. La copia del script original está en
   `<temp-claude>
-  9c93-48e4bbe0e596\scratchpad\gen_escenarios.bak.py`.
+  <sesión>\scratchpad\gen_escenarios.bak.py`.
 
 ● Agent "Apply approved escenarios fixes" finished · 4m 7s
 
@@ -9943,7 +9943,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" &&
       G="<temp-claude>
-      -4e6a-9c93-48e4bbe0e596/scratchpad/gen_agents.py" && se…)
+      <sesión>/scratchpad/gen_agents.py" && se…)
   ⎿  ./.claude/agents/devops.md:38:- `docker-compose.yml` con dos servicios
       (R-DEP-01): `mock-api` (Node 18+, `material/mock-api` montado en solo
      ./.claude/agents/plataforma.md:3:description: Esqueleto de la solución
@@ -10249,7 +10249,7 @@
 
 ● Bash(cd "D:/Proyectos/pt-Q10-AI" &&
       G="<temp-claude>
-      -4e6a-9c93-48e4bbe0e596/scratchpad/gen_agents.py" && se…)
+      <sesión>/scratchpad/gen_agents.py" && se…)
   ⎿  1
   ⎿  Updated .claude\agents\nucleo.md +1 -1
       35  - Validación de entrada: cuerpo mal formado, pregunta vacía o d

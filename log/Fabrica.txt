@@ -1827,7 +1827,7 @@ dudas.md y sigues con otra tarea. Actualiza PROGRESO.md al cerrar cada fase.
 
 ● Stop Task
   ⎿  W='<temp-claude>
-     4fff-4a15-a7ff-3f9939a679a6/scratchpad'; for i in $(seq 1 120); do
+     <sesión>/scratchpad'; for i in $(seq 1 120); do
      c=$(curl -s -m 90 -o $W… · stopped
 
   Ran 1 shell command (ctrl+o to expand)
@@ -2345,7 +2345,7 @@ dudas.md y sigues con otra tarea. Actualiza PROGRESO.md al cerrar cada fase.
 
 ● Stop Task
   ⎿  W='<temp-claude>
-     4fff-4a15-a7ff-3f9939a679a6/scratchpad'; for i in $(seq 1 120); do
+     <sesión>/scratchpad'; for i in $(seq 1 120); do
      c=$(curl -s -m 90 -o $W… · stopped
 
   Ran 1 shell command (ctrl+o to expand)
@@ -2838,7 +2838,7 @@ dudas.md y sigues con otra tarea. Actualiza PROGRESO.md al cerrar cada fase.
 
 ● Stop Task
   ⎿  W='<temp-claude>
-     4fff-4a15-a7ff-3f9939a679a6/scratchpad'; for i in 1 2 3 4 5 6; do
+     <sesión>/scratchpad'; for i in 1 2 3 4 5 6; do
      sleep 120; c=$(curl -s -… · stopped
 
   Ran 1 shell command (ctrl+o to expand)
