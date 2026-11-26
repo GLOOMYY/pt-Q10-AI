@@ -180,7 +180,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** §5.0 da 400 solo si falta `pregunta` o `usuario` o el `rol` es inválido, y D-26 da 403 al ID vacío. No se define qué pasa si falta el campo `id` o si viene como número. Implementado: `id` ausente → 403 (como vacío); `id` no textual → 400 (cuerpo que no cumple el contrato, como ESC-ENT-11).
 - **Qué quedó pendiente:** nada; es fácil de cambiar.
 - **Propuesta:** confirmar este comportamiento.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Confirmada por el responsable (2026-11-26): `id` ausente → 403; `id` no textual → 400._
 
 ## DUDA-16 · Variable de entorno para el timeout de la API simulada
 
@@ -192,7 +192,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** R-QA-04 fija 5 s para la API simulada y AGENTS §7 pide que los timeouts se lean de la configuración, pero R-DEP-02 no define la variable. Datos usó `MOCK_API_TIMEOUT_SECONDS`, opcional, con valor por defecto 5.
 - **Qué quedó pendiente:** documentarla (el SPEC solo lo edita el responsable).
 - **Propuesta:** mantener la variable opcional con el valor por defecto del SPEC y que el responsable la añada a R-DEP-02 si lo desea; devops la documenta en `.env.example`.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): `MOCK_API_TIMEOUT_SECONDS` opcional, por defecto 5._
 
 ## DUDA-17 · La imagen Docker no incluye el corpus `material/reglamento`
 
@@ -216,7 +216,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la ruta del corpus es configurable con `KNOWLEDGE_CORPUS_PATH`, opcional; si no está, se busca `material/reglamento` junto al binario y hacia arriba. No figura en R-DEP-02.
 - **Qué quedó pendiente:** documentarla.
 - **Propuesta:** igual que DUDA-16: opcional, documentada por devops en `.env.example`; el responsable decide si la añade a R-DEP-02.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): `KNOWLEDGE_CORPUS_PATH` opcional._
 
 ## DUDA-19 · Criterios adicionales de "dato inconsistente"
 
@@ -228,7 +228,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** R-CAL-12 nombra la fila de notas sin asistencia (o al revés) y la nota fuera de 0.0–5.0. Dominio también trata como inconsistentes los créditos faltantes o ≤ 0, las clases programadas faltantes o ≤ 0 y las inasistencias negativas, porque con ellos no se puede calcular. Ningún dato de prueba tiene estos casos.
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** mantenerlo; el responsable puede ampliar R-CAL-12 para nombrarlo.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26)._
 
 ## DUDA-20 · Asignatura perdida por inasistencia con un corte sin nota
 
@@ -240,7 +240,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con faltas > 15 % y un corte `null`, R-CAL-06 ("0.0 sin importar las notas de los cortes") y R-CAL-05 ("sin corte no hay definitiva") chocan. Implementado: prevalece la pérdida por inasistencia (definitiva 0.0, entra en el promedio). Ningún estudiante de prueba tiene este caso.
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar la precedencia de R-CAL-06.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): prevalece la pérdida por inasistencia (R-CAL-06)._
 
 ## DUDA-21 · Cuándo una conclusión provisional pasa a "no determinable"
 
@@ -252,7 +252,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** R-CAL-10 pide informar como provisionales las conclusiones que dependen de un promedio provisional. Implementado: se evalúa con la asistencia desconocida como "no perdida" y como "perdida"; si ambos resultados coinciden se informa ese resultado como provisional (EST-003: no elegible para beca y sin prueba académica en ambos casos, como dice §6.10); si difieren, "no determinable". Las asignaturas inconsistentes (R-CAL-12) se tratan como las que no tienen definitiva para la beca (D-05: "no determinable").
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar el criterio.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Confirmada por el responsable (2026-11-26): «así es, van a no determinable». Se mantiene el criterio: si los dos escenarios difieren, la conclusión es no determinable; las asignaturas inconsistentes también llevan la beca a no determinable._
 
 ## DUDA-22 · Tipo de asignatura no habilitable
 
@@ -300,7 +300,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** ante una excepción no controlada se registra `status` 500 (y 499 si el cliente cierra la conexión) con `motivo` null, porque el catálogo cerrado de R-LOG-10 no tiene valor para esos casos. El registro no incluye el texto de la excepción.
 - **Qué quedó pendiente:** nada fuera del catálogo.
 - **Propuesta:** mantenerlo; el responsable decide si §5.0 debe definir una respuesta 500 con contrato y su motivo.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26)._
 
 ## DUDA-26 · Partículas y palabras cortas en la barrera determinista
 
@@ -312,7 +312,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la barrera bloquea "cada palabra del nombre". Un nombre con partículas ("de", "la") bloquearía casi cualquier pregunta. Con los datos actuales no ocurre; no se excluyó ninguna palabra para no inventar la regla.
 - **Qué quedó pendiente:** nada con los datos actuales.
 - **Propuesta:** ignorar partículas comunes o palabras de menos de 3 letras si el responsable lo aprueba.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): no se excluyen partículas mientras los datos no lo requieran._
 
 ## DUDA-27 · Restricción del `X-Correlation-Id` reutilizado
 
@@ -324,7 +324,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** R-LOG-09 dice que si la petición trae `X-Correlation-Id` se reutiliza. Seguridad solo lo reutiliza si es ASCII imprimible de 1 a 128 caracteres; si no, genera uno nuevo, para no escribir valores arbitrarios en el log ni en la cabecera de respuesta.
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** mantener la restricción (los evals envían un identificador único razonable).
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26)._
 
 ## DUDA-28 · Variable `AUDIT_LOG_PATH`
 
@@ -336,7 +336,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la ruta del log de auditoría es configurable con `AUDIT_LOG_PATH`, opcional, con valor por defecto `var/auditoria/auditoria.jsonl`. No figura en R-DEP-02.
 - **Qué quedó pendiente:** documentarla en `.env.example`.
 - **Propuesta:** devops la documenta como opcional (igual que DUDA-16 y DUDA-18).
-- **Respuesta:** _Resuelta por el orquestador: se asigna a devops en F4._
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): `AUDIT_LOG_PATH` opcional._
 
 ## DUDA-29 · Límite de llamadas al LLM por pregunta
 
@@ -348,7 +348,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el bucle del LLM tiene un tope (`AssistantOptions.MaxLlmCalls`, 8) para limitar el costo por pregunta; al agotarse responde 503 con los tokens ya gastados. R-DEP-02 no define variable para esto.
 - **Qué quedó pendiente:** exponerlo por variable de entorno.
 - **Propuesta:** mantener el valor por defecto sin variable nueva; el responsable decide si la añade a R-DEP-02.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Respondida por el responsable (2026-11-26): el límite pasa a 4 llamadas al LLM por pregunta, para no aumentar el costo. Se asigna a nucleo (valor por defecto) y a devops (`.env.example`)._
 
 ## DUDA-30 · Motivo de `rechazar` fuera del catálogo
 
@@ -360,7 +360,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el esquema de `rechazar` restringe `motivo` a "datos de terceros", "intento de inyección" e "intento de extracción del sistema". Si el modelo manda otro texto o ninguno, se registra "datos de terceros".
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26)._
 
 ## DUDA-31 · Respaldos `TryAdd` en `AddApplication()`
 
@@ -384,7 +384,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** si un coordinador busca un nombre que no coincide con ningún estudiante de sus programas, se responde 403, igual que un ID inexistente, para no confirmar ni negar que exista. Un nombre mal escrito de un estudiante propio también acaba en 403.
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar; alternativa: 200 con "sin coincidencias en tus programas".
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Respondida por el responsable (2026-11-26): 403, como está implementado._
 
 ## DUDA-33 · Orden de `log.estudiantesConsultados` en los escenarios
 
@@ -396,7 +396,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** §4.1 dice "lista exacta de IDs" sin precisar si importa el orden. Con el LLM real el orden de consulta puede variar. Los ejecutores lo comparan como multiconjunto (mismos IDs, mismas veces, sin importar el orden).
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** confirmar la comparación sin orden.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): comparación sin orden (multiconjunto)._
 
 ## DUDA-34 · Escenarios 403 de coordinador guionizados sin `rechazar`
 
@@ -444,7 +444,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** con el sistema levantado con `docker compose` y la clave del `.env` del responsable, la primera pregunta documental respondió bien (200, cita del Artículo 5, 4 936 tokens). Las siguientes peticiones reciben de Gemini `HTTP 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.` o agotan el timeout de 30 s. El backend responde correctamente 503 sin inventar datos, pero así `evals/` daría fallos falsos en casi todos los escenarios.
 - **Qué quedó pendiente:** ejecutar `evals/` con el LLM real (F5).
 - **Propuesta:** reintentar cuando el proveedor se normalice (el orquestador deja un sondeo periódico). Si persiste, el responsable puede valorar otro `LLM_MODEL` en su `.env` (sin cambiar el SPEC) o ejecutar F5 en otro momento.
-- **Respuesta:** _(pendiente; continúa en DUDA-43)_
+- **Respuesta:** _Resuelta con DUDA-43 y DUDA-45 (2026-11-26)._
 
 ## DUDA-38 · Ejecución de `evals/` cortada por memoria del equipo
 
@@ -456,7 +456,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** la primera ejecución completa de `evals/` (unos 140 escenarios enviados) fue detenida por el entorno con "the system is running low on memory" antes de escribir el informe. El equipo tenía 2,2 GB libres de 15,9 GB (WSL de Docker con unos 2,9 GB).
 - **Qué quedó pendiente:** nada; el orquestador relanzó F5 por tandas (un archivo de escenarios por ejecución, `--file`) tras cerrar el servidor de compilación de .NET.
 - **Propuesta:** en el equipo del responsable, ejecutar `evals/` por tandas o con más memoria libre.
-- **Respuesta:** _Resuelta por el orquestador: ejecución por tandas._
+- **Respuesta:** _Resuelta: el responsable liberó memoria (2026-11-26)._
 
 ## DUDA-39 · Reintento de errores transitorios del proveedor del LLM
 
@@ -480,7 +480,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el hook `pre-commit` falló una vez en 1 de las 197 pruebas de integración y pasó al repetirlo. El orquestador ejecutó la suite 3 veces sobre `main` (197/197 en las tres) sin reproducirlo. El equipo estaba con poca memoria en ese momento (DUDA-38).
 - **Qué quedó pendiente:** identificar la prueba si vuelve a fallar.
 - **Propuesta:** si reaparece, asignar a integracion su diagnóstico con el nombre exacto de la prueba y el error; no se marca ni se salta ninguna prueba.
-- **Respuesta:** _(en observación)_
+- **Respuesta:** _Respondida por el responsable (2026-11-26); no se ha vuelto a reproducir._
 
 ## DUDA-41 · ESC-INY-04: Output esperado 200 frente a la nota "si se detecta, 403"
 
@@ -492,7 +492,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** el Output esperado de ESC-INY-04 exige `"status": 200`, pero sus Notas dicen "Si se detecta, 403". Se implementó 200: el texto codificado no se decodifica ni se ejecuta y no se fuga nada.
 - **Qué quedó pendiente:** nada.
 - **Propuesta:** mantener 200, porque el README dice que se comprueba el Output esperado; el responsable puede aclarar la nota del escenario.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26): 200, según el Output esperado._
 
 ## DUDA-42 · Motivo de "no habilitable" no expuesto por Domain
 
@@ -516,7 +516,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** se hicieron tres pasadas de `evals/` con el LLM real. Las dos primeras terminaron; la tercera se cortó tras banco, estudiante y coordinador porque Claude Code detuvo el proceso en segundo plano por memoria crítica del equipo ("the system is running low on memory") y pide no relanzarlo sin autorización. Además, en todas las pasadas una parte grande de los escenarios recibió 503 de Gemini ("This model is currently experiencing high demand") pese a los reintentos (PR #25). El stack de `docker compose` quedó detenido (`docker compose stop`) para liberar memoria; `var/auditoria` y los informes de `var/evals/` se conservan.
 - **Qué quedó pendiente:** una pasada completa y limpia de `evals/` (sin 503 del proveedor) tras la última ronda de correcciones de nucleo.
 - **Propuesta:** el responsable libera memoria (o arranca Claude Code con `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`) y relanza: `docker compose up -d --build --wait` y luego `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios, en un momento de menor demanda de Gemini o con otro `LLM_MODEL` en su `.env`.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Resuelta: el responsable liberó memoria y actualizó la clave (2026-11-26); F5 se relanzó._
 
 ## DUDA-44 · Citas que el backend completa de forma determinista
 
@@ -528,7 +528,7 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** para ESC-BAN-04 y ESC-COO-01 el backend añade, validándolas con el índice, la cita de Evaluación Sección 2 cuando la respuesta cita la Sección 3 y menciona los pesos de los cortes, y la del Artículo 11 cuando los datos consultados tienen una pérdida por inasistencia y la respuesta la menciona. La segunda regla busca la palabra en toda la respuesta, así que podría añadir el Artículo 11 cuando la respuesta habla de inasistencia de otra asignatura o de otro estudiante del programa. Queda sin resolver la cita sobrante del Artículo 11 que el modelo propone a veces en ESC-BAN-04 (el fragmento sí se recupera).
 - **Qué quedó pendiente:** confirmar el criterio y, si persiste en ESC-BAN-04, mejorar la ordenación de la búsqueda (conocimiento).
 - **Propuesta:** mantener las reglas (cada cita añadida existe y se valida); afinar la del Artículo 11 a la asignatura perdida si los evals muestran falsos positivos.
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Aceptada por el responsable (2026-11-26)._
 
 ## DUDA-45 · Cuota diaria de Gemini agotada
 
@@ -540,4 +540,4 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** al reanudar F5 con el stack reconstruido sobre `main` (incluye el PR #29), Gemini responde `HTTP 429: You exceeded your current quota, please check your plan and billing details` en todas las peticiones durante más de 5 minutos (12 respuestas 429 seguidas). El backend responde 503 como exige CL-23, sin inventar datos. Es la cuota de la clave del `.env` del responsable, consumida por las tres pasadas anteriores.
 - **Qué quedó pendiente:** la pasada completa y limpia de `evals/` que verifica los PR #26 a #29 con el LLM real. El stack quedó detenido (`docker compose stop`).
 - **Propuesta:** el responsable amplía la cuota o el plan de la clave, o espera al reinicio diario de la cuota, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios (con memoria libre suficiente, DUDA-43).
-- **Respuesta:** _(pendiente del responsable)_
+- **Respuesta:** _Resuelta: el responsable actualizó la `LLM_API_KEY` (2026-11-26). La nueva clave tiene un límite por minuto bajo: los evals se ejecutan con pausa entre preguntas._
