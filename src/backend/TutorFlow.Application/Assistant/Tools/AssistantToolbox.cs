@@ -62,6 +62,19 @@ public sealed class AssistantToolbox
     }
 
     /// <summary>
+    /// Tools offered on the last allowed model call (DUDA-29): only the exits <see cref="AssistantTools.Reject"/> and
+    /// <see cref="AssistantTools.NoInformation"/>. No later call could use the result of a data tool or of
+    /// <c>buscar_reglamento</c>, so they are not offered and the model must answer with what it already has. The exits
+    /// stay because they read no data: <c>rechazar</c> keeps the 403 available until the end (R-ARQ-04, security is
+    /// never weaker on the last call), and <c>responder_sin_informacion</c> lets the model say it has no answer instead
+    /// of inventing one (R-RES-03).
+    /// </summary>
+    /// <param name="user">The session user.</param>
+    /// <returns>The exit definitions of the user's role.</returns>
+    public static IReadOnlyList<LlmToolDefinition> ExitDefinitionsFor(SessionUser user) =>
+        [.. DefinitionsFor(user).Where(t => t.Name is AssistantTools.Reject or AssistantTools.NoInformation)];
+
+    /// <summary>
     /// The fixed 200 answer of a <see cref="AssistantTools.NoInformation"/> call (R-RES-03, R-RES-07). It never reads
     /// any data.
     /// </summary>
