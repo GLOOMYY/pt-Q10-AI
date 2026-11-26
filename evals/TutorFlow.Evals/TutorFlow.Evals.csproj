@@ -1,0 +1,15 @@
+<Project>
+  <!-- Shared settings are imported before the SDK so central package management applies outside src/backend. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\..\src\backend\Directory.Build.props" />
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TutorFlow.Evals</RootNamespace>
+    <AssemblyName>TutorFlow.Evals</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TutorFlow.Scenarios\TutorFlow.Scenarios.csproj" />
+  </ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>
