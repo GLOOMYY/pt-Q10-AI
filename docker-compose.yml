@@ -1,0 +1,66 @@
+# TutorFlow · `docker compose up` (SPEC R-DEP-01, R-DEP-02, R-DEP-03, R-LOG-07).
+#
+# Prerequisite: a .env file at the repository root (copy of .env.example with your LLM_API_KEY).
+# No other manual steps: `docker compose up --build`.
+
+name: tutorflow
+
+services:
+  # Simulated academic API (material/mock-api/server.js, unmodified). Reachable only
+  # from the internal network: no port is published to the host.
+  mock-api:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "server.js"]
+    volumes:
+      # material/ is the source of truth: mounted read-only (R-DEP-01).
+      - ./material/mock-api:/app:ro
+    expose:
+      - "4000"
+    networks:
+      - interna
+    # R-DEP-03: GET /salud. Node is already in the image, so no curl is needed.
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/salud', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  # .NET 10 backend: API (/api/*) and static frontend (/) on port 8080 (D-14).
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    # R-DEP-02: variables read from .env (not versioned). Required: LLM_API_KEY.
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the backend reaches the simulated API by service name.
+      MOCK_API_URL: http://mock-api:4000
+    ports:
+      - "8080:8080"
+    volumes:
+      # R-LOG-07: the audit log auditoria.jsonl is written to the host (var/ is in .gitignore).
+      - ./var/auditoria:/app/var/auditoria
+    networks:
+      - interna
+      - publica
+    # R-DEP-03: GET /api/salud. The aspnet image has no curl, so bash (/dev/tcp) performs
+    # the HTTP request and checks that the status line is 200.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /api/salud HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+networks:
+  # No internet access: mock-api only talks to the backend.
+  interna:
+    internal: true
+  # Outbound access for the backend (LLM client) and publication of port 8080.
+  publica: {}
