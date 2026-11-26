@@ -144,14 +144,14 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Descripción:** `.githooks/commit-msg` elimina las líneas `#` antes de validar. Con `git commit -m` esas líneas se conservan, así que un mensaje con una línea `# …` después del trailer pasaría el hook y la CI (que usa el mismo script) aunque el trailer no sea la última línea real. Ningún commit actual tiene ese caso. El comentario de `ci.yml` que dice "no line is removed here" es inexacto.
 - **Qué quedó pendiente:** un modo estricto en la CI y corregir el comentario.
 - **Propuesta:** devops lo corrige en su próxima tarea (F4).
-- **Respuesta:** _Resuelta por el orquestador: se asigna a devops en F4._
+- **Respuesta:** _Resuelta: devops añadió el modo `--strict` de `commit-msg` y la CI lo usa (PR #10)._
 
 ## DUDA-13 · `Program.cs` no invoca `AddApplication()` ni `MapAssistant()`
 
 - **Fecha:** 2026-11-26
 - **Rol / rama:** nucleo / nucleo/f1a (PR #4)
 - **Referencia:** DUDA-01, AGENTS §5, SPEC §5
-- **Tipo:** permiso
+- **Tipo:** ambigüedad
 - **Bloqueante:** no
 - **Descripción:** `Program.cs` es de plataforma. Mientras no los invoque, `POST /api/asistente/preguntar` no existe en la aplicación real; las pruebas de Api montan su propio servidor.
 - **Qué quedó pendiente:** registrar `AddApplication()` y `MapAssistant()` en `Program.cs`.
@@ -200,11 +200,11 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Rol / rama:** conocimiento / conocimiento/f1b (PR #7)
 - **Referencia:** R-FUE-01, R-DEP-01
 - **Tipo:** ambigüedad
-- **Bloqueante:** no (lo será al cablear `AddKnowledge()` en el arranque)
-- **Descripción:** `.dockerignore` excluye `material/` y el Dockerfile solo copia `src/backend/`, así que la imagen no contiene el corpus y `AddKnowledge()` fallaría al arrancar en Docker.
+- **Bloqueante:** no
+- **Descripción:** (habría sido bloqueante al cablear `AddKnowledge()` en el arranque). `.dockerignore` excluye `material/` y el Dockerfile solo copia `src/backend/`, así que la imagen no contiene el corpus y `AddKnowledge()` fallaría al arrancar en Docker.
 - **Qué quedó pendiente:** que el corpus llegue a la imagen.
 - **Propuesta:** devops copia `material/reglamento` (solo los tres documentos vigentes o la carpeta completa; el 2023 no se indexa de todas formas) a `/app/material/reglamento` en la etapa de runtime, y documenta `KNOWLEDGE_CORPUS_PATH` si se usa otra ruta. Se hace junto con el cableado de plataforma.
-- **Respuesta:** _Resuelta por el orquestador: asignada a devops antes de cablear `AddKnowledge()`._
+- **Respuesta:** _Resuelta: el corpus vigente viaja en la imagen con `KNOWLEDGE_CORPUS_PATH` y la CI lo comprueba (PR #10)._
 
 ## DUDA-18 · Variable `KNOWLEDGE_CORPUS_PATH` fuera de R-DEP-02
 
@@ -265,3 +265,123 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** nada con los datos actuales.
 - **Propuesta:** el caso de uso lo deja en "no es práctica ni trabajo de grado" mientras los datos no traigan el tipo; no se deduce por el nombre.
 - **Respuesta:** _Resuelta por el orquestador: se aplica la propuesta (no se inventa el tipo)._
+
+## DUDA-23 · Fórmula de costo duplicada en el LLM falso
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** conocimiento / conocimiento/f2 (PR #12)
+- **Referencia:** R-RES-05, FABRICA §3
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** `FakeLlmClient` (en `tests/TutorFlow.Testing/`) no puede reutilizar `LlmCostCalculator` (Infrastructure) porque `TutorFlow.Testing` solo referencia Application. La fórmula está duplicada y una prueba comprueba que ambas coinciden.
+- **Qué quedó pendiente:** una única implementación de la fórmula.
+- **Propuesta:** mover el cálculo de costo a Application (nucleo) para que lo compartan el adaptador real y el falso, sin que Testing dependa de Infrastructure.
+- **Respuesta:** _Resuelta por el orquestador: se aplica la propuesta en una tarea posterior de nucleo y conocimiento; mientras tanto la prueba de coincidencia protege contra divergencias._
+
+## DUDA-24 · Carpetas de pruebas del middleware y del adaptador de auditoría
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** seguridad / seguridad/f2 (PR #13)
+- **Referencia:** FABRICA §3, R-LOG-01, R-LOG-07, R-LOG-09
+- **Tipo:** permiso
+- **Bloqueante:** no
+- **Descripción:** FABRICA §3 da a seguridad `Api/Middleware/` e `Infrastructure/Audit/`, pero no las carpetas de pruebas correspondientes (`tests/TutorFlow.Api.Tests/` es de nucleo; `tests/TutorFlow.Infrastructure.Tests/Audit/` no tiene dueño).
+- **Qué quedó pendiente:** nada; ver respuesta.
+- **Propuesta:** asignar a seguridad `tests/TutorFlow.Api.Tests/Middleware/` y `tests/TutorFlow.Infrastructure.Tests/Audit/`, igual que datos y conocimiento tienen sus subcarpetas en `Infrastructure.Tests`.
+- **Respuesta:** _Resuelta por el orquestador de forma provisional aplicando la propuesta; el responsable puede reflejarlo en FABRICA §3._
+
+## DUDA-25 · Registro de auditoría con status 500 o 499
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** seguridad / seguridad/f2 (PR #13)
+- **Referencia:** R-LOG-10, SPEC §5.0
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** ante una excepción no controlada se registra `status` 500 (y 499 si el cliente cierra la conexión) con `motivo` null, porque el catálogo cerrado de R-LOG-10 no tiene valor para esos casos. El registro no incluye el texto de la excepción.
+- **Qué quedó pendiente:** nada fuera del catálogo.
+- **Propuesta:** mantenerlo; el responsable decide si §5.0 debe definir una respuesta 500 con contrato y su motivo.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-26 · Partículas y palabras cortas en la barrera determinista
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** seguridad / seguridad/f2 (PR #13)
+- **Referencia:** R-SEG-14
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** la barrera bloquea "cada palabra del nombre". Un nombre con partículas ("de", "la") bloquearía casi cualquier pregunta. Con los datos actuales no ocurre; no se excluyó ninguna palabra para no inventar la regla.
+- **Qué quedó pendiente:** nada con los datos actuales.
+- **Propuesta:** ignorar partículas comunes o palabras de menos de 3 letras si el responsable lo aprueba.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-27 · Restricción del `X-Correlation-Id` reutilizado
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** seguridad / seguridad/f2 (PR #13)
+- **Referencia:** R-LOG-09, §5
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** R-LOG-09 dice que si la petición trae `X-Correlation-Id` se reutiliza. Seguridad solo lo reutiliza si es ASCII imprimible de 1 a 128 caracteres; si no, genera uno nuevo, para no escribir valores arbitrarios en el log ni en la cabecera de respuesta.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantener la restricción (los evals envían un identificador único razonable).
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-28 · Variable `AUDIT_LOG_PATH`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** seguridad / seguridad/f2 (PR #13)
+- **Referencia:** R-LOG-07, R-DEP-02, DUDA-06
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** la ruta del log de auditoría es configurable con `AUDIT_LOG_PATH`, opcional, con valor por defecto `var/auditoria/auditoria.jsonl`. No figura en R-DEP-02.
+- **Qué quedó pendiente:** documentarla en `.env.example`.
+- **Propuesta:** devops la documenta como opcional (igual que DUDA-16 y DUDA-18).
+- **Respuesta:** _Resuelta por el orquestador: se asigna a devops en F4._
+
+## DUDA-29 · Límite de llamadas al LLM por pregunta
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f2 (PR #14)
+- **Referencia:** AGENTS §7, R-DEP-02, R-RES-05
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el bucle del LLM tiene un tope (`AssistantOptions.MaxLlmCalls`, 8) para limitar el costo por pregunta; al agotarse responde 503 con los tokens ya gastados. R-DEP-02 no define variable para esto.
+- **Qué quedó pendiente:** exponerlo por variable de entorno.
+- **Propuesta:** mantener el valor por defecto sin variable nueva; el responsable decide si la añade a R-DEP-02.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-30 · Motivo de `rechazar` fuera del catálogo
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f2 (PR #14)
+- **Referencia:** R-ARQ-04, R-LOG-10, D-29
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el esquema de `rechazar` restringe `motivo` a "datos de terceros", "intento de inyección" e "intento de extracción del sistema". Si el modelo manda otro texto o ninguno, se registra "datos de terceros".
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** confirmar.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-31 · Respaldos `TryAdd` en `AddApplication()`
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f2 (PR #14)
+- **Referencia:** AGENTS §5, FABRICA §3
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** `AddApplication()` registra con `TryAdd` un LLM que siempre responde 503 y un contexto de auditoría vacío, para que el host compile y valide dependencias mientras faltan los registros reales. Los registros reales (Gemini con `AddHttpClient`, auditoría con `AddScoped`, PR #12 y #13) ganan en cualquier orden.
+- **Qué quedó pendiente:** retirar los respaldos cuando todo esté cableado.
+- **Propuesta:** nucleo los retira en F3 si ya no hacen falta.
+- **Respuesta:** _Resuelta por el orquestador: se aplica la propuesta._
+
+## DUDA-32 · Coordinador que busca un nombre sin coincidencias en sus programas
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f2 (PR #14)
+- **Referencia:** R-SEG-05, R-SEG-12, ESC-COO-19
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** si un coordinador busca un nombre que no coincide con ningún estudiante de sus programas, se responde 403, igual que un ID inexistente, para no confirmar ni negar que exista. Un nombre mal escrito de un estudiante propio también acaba en 403.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** confirmar; alternativa: 200 con "sin coincidencias en tus programas".
+- **Respuesta:** _(pendiente del responsable)_
