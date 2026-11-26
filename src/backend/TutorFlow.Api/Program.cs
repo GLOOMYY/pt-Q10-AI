@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Options;
 using TutorFlow.Api.Endpoints;
+using TutorFlow.Api.Middleware;
 using TutorFlow.Application;
+using TutorFlow.Application.Audit;
+using TutorFlow.Application.Security.Defenses;
 using TutorFlow.Infrastructure;
 using TutorFlow.Infrastructure.Llm;
 
@@ -18,6 +21,8 @@ if (string.IsNullOrEmpty(builder.Configuration["ASPNETCORE_URLS"])
 
 // Each layer registers its own services (AGENTS 5).
 builder.Services.AddApplication();
+builder.Services.AddAudit();
+builder.Services.AddSecurityDefenses();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -32,6 +37,9 @@ catch (OptionsValidationException ex)
     Console.Error.WriteLine($"Startup aborted: {string.Join("; ", ex.Failures)}");
     return 1;
 }
+
+// R-LOG-01/07/09: first in the pipeline so every response carries X-Correlation-Id and each request leaves one record.
+app.UseAuditTrail();
 
 app.MapHealth();
 app.MapAssistant();
