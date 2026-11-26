@@ -39,9 +39,9 @@ public class StudentToolsTests
         Assert.Equal([new Citation("reglamento_academico_2025.md", "Artículo 5")], answer.Citations);
         Assert.False(answer.UsedStudentData);
         Assert.Null(answer.Reason);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.Empty(h.StudentDataCalls);
-        Assert.Equal([AssistantTools.SearchRegulations], h.Audit.Tools);
+        Assert.Equal([AssistantTools.SearchRegulations], h.Log.Tools);
 
         // R-RES-05: tokens are the sum of totalTokenCount of both calls; cost rounded to 6 decimals.
         Assert.Equal(2 * (FakeLlmReply.DefaultPromptTokens + FakeLlmReply.DefaultCandidatesTokens), answer.Tokens);
@@ -64,9 +64,9 @@ public class StudentToolsTests
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.True(answer.UsedStudentData);
-        Assert.Equal(["EST-001"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
         Assert.Equal(["/estudiantes/EST-001/notas", "/estudiantes/EST-001/asistencia"], h.StudentDataCalls);
-        Assert.Contains("/salud", h.Audit.Resources);
+        Assert.Contains("/salud", h.Log.ResourcesConsulted);
         Assert.Equal(
             [
                 new Citation("evaluacion_y_calificaciones.md", "Sección 3"),
@@ -100,7 +100,7 @@ public class StudentToolsTests
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.True(answer.UsedStudentData);
-        Assert.Equal(["EST-001"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
     }
 
     // ESC-EST-01, CL-03: lost by absences → 0.0 whatever the cuts; 9/48 = 18.75 %; average 2.28 and probation.
@@ -182,8 +182,13 @@ public class StudentToolsTests
         Assert.Equal("1.4", Text(result, "notaMinimaEnCadaCortePendiente"));
         Assert.Equal("2.40", Text(result, "notaAcumulada"));
         Assert.Equal("3.0", Text(result, "meta"));
+
+        // R-RES-02, R-CAL-11: data plus the rule applied (Evaluación §2-3).
+        Assert.Equal(
+            ["Sección 2", "Sección 3"],
+            result.GetProperty("citasReglas").EnumerateArray().Select(c => Text(c, "seccion")));
         Assert.True(answer.UsedStudentData);
-        Assert.Equal(["EST-006"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-006"], h.Log.StudentsConsulted);
     }
 
     // ESC-SIM-09: target 5.0 unreachable; ESC-SIM-10: lost by absences; ESC-SIM-11: already has a final grade.
@@ -252,7 +257,7 @@ public class StudentToolsTests
         Assert.False(answer.UsedStudentData);
         Assert.Equal(FakeLlmReply.DefaultPromptTokens + FakeLlmReply.DefaultCandidatesTokens, answer.Tokens);
         Assert.Empty(h.StudentDataCalls);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.Equal(1, h.Llm.CallCount);
     }
 
@@ -271,7 +276,7 @@ public class StudentToolsTests
 
         Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
         Assert.Equal(AuditReasons.ThirdPartyData, answer.Reason);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.DoesNotContain(h.Api.Calls, c => c.EndsWith("/notas", StringComparison.Ordinal));
     }
 

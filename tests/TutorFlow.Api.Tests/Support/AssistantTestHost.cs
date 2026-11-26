@@ -6,14 +6,20 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TutorFlow.Api.Endpoints;
+using TutorFlow.Api.Middleware;
 using TutorFlow.Application;
 using TutorFlow.Application.Assistant;
+using TutorFlow.Application.Audit;
+using TutorFlow.Application.Ports.Clock;
+using TutorFlow.Application.Security.Defenses;
 using TutorFlow.Application.Ports.AcademicApi;
 using TutorFlow.Application.Ports.Audit;
 using TutorFlow.Application.Ports.Knowledge;
 using TutorFlow.Application.Ports.Llm;
+using TutorFlow.Infrastructure.Clock;
 using TutorFlow.Infrastructure.Knowledge;
 using TutorFlow.Testing.AcademicApi;
+using TutorFlow.Testing.Audit;
 using TutorFlow.Testing.Llm;
 
 namespace TutorFlow.Api.Tests.Support;
@@ -21,7 +27,9 @@ namespace TutorFlow.Api.Tests.Support;
 /// <summary>
 /// In-process host of the assistant endpoint: <c>AddApplication()</c> and <c>MapAssistant()</c> with the double of the
 /// simulated API built from <c>datos.json</c>, the fake LLM (AGENTS §8), the real knowledge base over
-/// <c>material/reglamento</c> and a recording audit context. Scopes are validated on build, as in Development.
+/// <c>material/reglamento</c>, and the real audit trail of seguridad (<c>AddAudit()</c> + <c>UseAuditTrail()</c>) writing to
+/// an in-memory log (R-LOG-09). Optionally the real deterministic defenses (<c>AddSecurityDefenses()</c>). Scopes are
+/// validated on build, as in Development.
 /// </summary>
 public sealed class AssistantTestHost : IAsyncDisposable
 {
@@ -37,12 +45,12 @@ public sealed class AssistantTestHost : IAsyncDisposable
 
     public FakeLlmClient Llm { get; } = new();
 
-    /// <summary>Audit contexts created so far, one per request.</summary>
-    public List<RecordingAuditContext> Audits { get; } = [];
+    /// <summary>The audit log: one record per request (R-LOG-01).</summary>
+    public InMemoryAuditLog Log { get; } = new();
 
     public HttpClient Client { get; private set; } = null!;
 
-    public static async Task<AssistantTestHost> StartAsync(params IQuestionGuard[] guards)
+    public static async Task<AssistantTestHost> StartAsync(bool withSecurityDefenses = false)
     {
         var host = new AssistantTestHost();
         var builder = WebApplication.CreateBuilder();
@@ -56,22 +64,16 @@ public sealed class AssistantTestHost : IAsyncDisposable
         builder.Services.AddSingleton<IAcademicApi>(host.Api);
         builder.Services.AddSingleton<ILlmClient>(host.Llm);
         builder.Services.AddSingleton<IKnowledgeBase>(_ => KnowledgeBase.FromDirectory(null));
-        builder.Services.AddScoped<IRequestAuditContext>(_ =>
+        builder.Services.AddAudit();
+        builder.Services.AddSingleton<IAuditLog>(host.Log);
+        builder.Services.AddSingleton<IClock, SystemClock>();
+        if (withSecurityDefenses)
         {
-            var audit = new RecordingAuditContext();
-            lock (host.Audits)
-            {
-                host.Audits.Add(audit);
-            }
-
-            return audit;
-        });
-        foreach (var guard in guards)
-        {
-            builder.Services.AddSingleton(guard);
+            builder.Services.AddSecurityDefenses();
         }
 
         host._app = builder.Build();
+        host._app.UseAuditTrail();
         host._app.MapHealth();
         host._app.MapAssistant();
         await host._app.StartAsync();

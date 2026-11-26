@@ -65,7 +65,7 @@ public sealed class AssistantEndpointTests
         Assert.False(body.GetProperty("usoDatosEstudiante").GetBoolean());
 
         // D-27: the question is recorded as received, not trimmed.
-        Assert.Equal(question, Assert.Single(host.Audits).Question);
+        Assert.Equal(question, Assert.Single(host.Log.Records).Question);
     }
 
     // ESC-ENT-18, API-05: " est-001 " is EST-001; its own average uses student data.
@@ -80,11 +80,10 @@ public sealed class AssistantEndpointTests
 
         Assert.Equal(200, status);
         Assert.True(body.GetProperty("usoDatosEstudiante").GetBoolean());
-        var audit = Assert.Single(host.Audits);
+        var audit = Assert.Single(host.Log.Records);
         Assert.Equal(["EST-001"], audit.StudentsConsulted);
-        Assert.Equal(" est-001 ", audit.User!.Id);
+        Assert.Equal(" est-001 ", audit.User.Id);
         Assert.Equal("estudiante", audit.User.Role);
-        Assert.Equal(1, audit.CompleteCalls);
         Assert.Contains(body.GetProperty("citas").EnumerateArray(), c => c.GetProperty("seccion").GetString() == "Notas · periodo 2026-2");
     }
 
@@ -101,7 +100,7 @@ public sealed class AssistantEndpointTests
         Assert.Equal(403, status);
         AssertArticle22(body);
         AssertZeroCost(body);
-        Assert.Empty(Assert.Single(host.Audits).StudentsConsulted);
+        Assert.Empty(Assert.Single(host.Log.Records).StudentsConsulted);
         Assert.Equal(0, host.Llm.CallCount);
     }
 
@@ -148,9 +147,9 @@ public sealed class AssistantEndpointTests
         AssertArticle22(body);
         Assert.False(body.GetProperty("usoDatosEstudiante").GetBoolean());
         Assert.Equal(FakeLlmReply.DefaultPromptTokens + FakeLlmReply.DefaultCandidatesTokens, body.GetProperty("tokens").GetInt32());
-        var audit = Assert.Single(host.Audits);
+        var audit = Assert.Single(host.Log.Records);
         Assert.Empty(audit.StudentsConsulted);
-        Assert.Equal("datos de terceros", audit.Answer!.Reason);
+        Assert.Equal("datos de terceros", audit.Reason);
     }
 
     // CL-10, R-SEG-03: a coordinator asking the tools for a student of another program is a 403.
@@ -164,7 +163,7 @@ public sealed class AssistantEndpointTests
 
         Assert.Equal(403, status);
         AssertArticle22(body);
-        Assert.Empty(Assert.Single(host.Audits).StudentsConsulted);
+        Assert.Empty(Assert.Single(host.Log.Records).StudentsConsulted);
         Assert.DoesNotContain(host.Api.Calls, c => c.StartsWith("/estudiantes/", StringComparison.Ordinal));
     }
 
@@ -184,7 +183,7 @@ public sealed class AssistantEndpointTests
 
         Assert.Equal(200, status);
         Assert.True(body.GetProperty("usoDatosEstudiante").GetBoolean());
-        Assert.Equal(["EST-004", "EST-005", "EST-006"], Assert.Single(host.Audits).StudentsConsulted);
+        Assert.Equal(["EST-004", "EST-005", "EST-006"], Assert.Single(host.Log.Records).StudentsConsulted);
     }
 
     // ESC-BAN-09, CL-14: no information → citations [] and no student data.
@@ -200,7 +199,7 @@ public sealed class AssistantEndpointTests
         Assert.Equal(200, status);
         Assert.Equal(0, body.GetProperty("citas").GetArrayLength());
         Assert.False(body.GetProperty("usoDatosEstudiante").GetBoolean());
-        Assert.Empty(Assert.Single(host.Audits).StudentsConsulted);
+        Assert.Empty(Assert.Single(host.Log.Records).StudentsConsulted);
     }
 
     // A malformed body is still recorded (nothing could be read) and completed once.
@@ -212,9 +211,27 @@ public sealed class AssistantEndpointTests
         var (status, _) = await host.PostAsync("{\"pregunta\": \"hola\", \"usuario\": ");
 
         Assert.Equal(400, status);
-        var audit = Assert.Single(host.Audits);
+        var audit = Assert.Single(host.Log.Records);
         Assert.Null(audit.Question);
-        Assert.Null(audit.User!.Role);
-        Assert.Equal("solicitud inválida", audit.Answer!.Reason);
+        Assert.Null(audit.User.Role);
+        Assert.Equal("solicitud inválida", audit.Reason);
+    }
+
+    // CL-09, ESC-BAN-10, R-SEG-14: with the real defenses, another student's name is a 403 before the LLM.
+    [Fact]
+    public async Task Barrier_blocks_before_the_llm()
+    {
+        await using var host = await AssistantTestHost.StartAsync(withSecurityDefenses: true);
+
+        var (status, body) = await host.PostAsync(AssistantTestHost.Body("¿Cuál es la nota de Bases de Datos de Andrés Martínez?"));
+
+        Assert.Equal(403, status);
+        AssertArticle22(body);
+        AssertZeroCost(body);
+        Assert.Equal(0, host.Llm.CallCount);
+        var record = Assert.Single(host.Log.Records);
+        Assert.Equal(403, record.Status);
+        Assert.Equal("barrera determinista", record.Reason);
+        Assert.Empty(record.StudentsConsulted);
     }
 }

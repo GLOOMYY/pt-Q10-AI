@@ -34,8 +34,8 @@ public class ModelLoopTests
         Assert.Equal(reason, answer.Reason);
         Assert.Equal(215, answer.Tokens);
         Assert.Equal(0.000073m, answer.CostUsd); // (200 × 0.25 + 15 × 1.50) / 1e6 = 0.0000725 → 0.000073
-        Assert.Equal([AssistantTools.Reject], h.Audit.Tools);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Equal([AssistantTools.Reject], h.Log.Tools);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.Empty(h.StudentDataCalls);
     }
 
@@ -65,8 +65,8 @@ public class ModelLoopTests
 
         Assert.Equal(AssistantOutcome.Forbidden, answer.Outcome);
         Assert.False(answer.UsedStudentData);
-        Assert.Equal(["EST-001"], h.Audit.StudentsConsulted);
-        Assert.Equal([AssistantTools.AcademicStatus, AssistantTools.Reject], h.Audit.Tools);
+        Assert.Equal(["EST-001"], h.Log.StudentsConsulted);
+        Assert.Equal([AssistantTools.AcademicStatus, AssistantTools.Reject], h.Log.Tools);
         Assert.Equal(2 * (FakeLlmReply.DefaultPromptTokens + FakeLlmReply.DefaultCandidatesTokens), answer.Tokens);
     }
 

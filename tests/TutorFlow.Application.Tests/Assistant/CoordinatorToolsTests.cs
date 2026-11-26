@@ -34,7 +34,7 @@ public class CoordinatorToolsTests
 
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.True(answer.UsedStudentData);
-        Assert.Equal(["EST-005"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-005"], h.Log.StudentsConsulted);
         Assert.Equal(
             [
                 new Citation("Datos del programa", "ADM · periodo 2026-2"),
@@ -64,7 +64,7 @@ public class CoordinatorToolsTests
         Assert.Equal(AuditReasons.ThirdPartyData, answer.Reason);
         Assert.Equal([AssistantAnswer.ForbiddenCitation], answer.Citations);
         Assert.False(answer.UsedStudentData);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.Empty(h.StudentDataCalls);
         Assert.Equal(["/coordinadores/COORD-01", "/programas/ING-SIS/estudiantes"], h.Api.Calls);
     }
@@ -108,7 +108,7 @@ public class CoordinatorToolsTests
         var answer = await h.AskCoordinatorAsync("¿Qué estudiantes de mi programa tienen alguna asignatura perdida?", "COORD-02");
 
         Assert.True(answer.UsedStudentData);
-        Assert.Equal(["EST-004", "EST-005", "EST-006"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-004", "EST-005", "EST-006"], h.Log.StudentsConsulted);
         Assert.DoesNotContain("/programas/ING-SIS/estudiantes", h.Api.Calls);
 
         // R-RES-02: the program data citation is added when the model forgot it.
@@ -135,7 +135,7 @@ public class CoordinatorToolsTests
         var answer = await h.AskCoordinatorAsync("¿Qué estudiantes hay en mi programa?");
 
         Assert.True(answer.UsedStudentData);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
         Assert.Empty(h.StudentDataCalls);
         Assert.Equal([new Citation("Datos del programa", "ING-SIS · periodo 2026-2")], answer.Citations);
         Assert.Equal(3, h.ToolResult().GetProperty("estudiantes").GetArrayLength());
@@ -153,7 +153,7 @@ public class CoordinatorToolsTests
         Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
         Assert.False(answer.UsedStudentData);
         Assert.Empty(answer.Citations);
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
     }
 
     // ESC-COO-13, R-SEG-12, D-21: a first name alone is ambiguous: matches of own programs only, no student chosen.
@@ -171,7 +171,7 @@ public class CoordinatorToolsTests
         var result = h.ToolResult();
         Assert.Equal(ambiguous, result.GetProperty("ambiguo").GetBoolean());
         Assert.Single(result.GetProperty("coincidencias").EnumerateArray());
-        Assert.Empty(h.Audit.StudentsConsulted);
+        Assert.Empty(h.Log.StudentsConsulted);
     }
 
     // R-SEG-05: a name outside the coordinator's programs is neither confirmed nor denied.
@@ -201,7 +201,7 @@ public class CoordinatorToolsTests
         var answer = await h.AskCoordinatorAsync("¿Cuánto necesita EST-006 en el corte 3 de Estadística para aprobar?", "COORD-02");
 
         Assert.Equal("1.4", Text(h.ToolResult(), "notaMinimaEnCadaCortePendiente"));
-        Assert.Equal(["EST-006"], h.Audit.StudentsConsulted);
+        Assert.Equal(["EST-006"], h.Log.StudentsConsulted);
         Assert.True(answer.UsedStudentData);
     }
 

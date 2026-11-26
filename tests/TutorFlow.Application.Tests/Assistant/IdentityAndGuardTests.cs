@@ -23,8 +23,9 @@ public class IdentityAndGuardTests
         Assert.Equal(0m, answer.CostUsd);
         Assert.Equal(reason, answer.Reason);
         Assert.Equal(0, h.Llm.CallCount);
-        Assert.Empty(h.Audit.StudentsConsulted);
-        Assert.Same(answer, Assert.Single(h.Audit.Completed));
+        Assert.Empty(h.Log.StudentsConsulted);
+        Assert.Equal(reason, h.Log.Reason);
+        Assert.Equal(0, h.Log.Tokens);
     }
 
     // ESC-ENT-13: a well-formed but nonexistent student id is a 403, checked with the program rosters only.
@@ -37,7 +38,7 @@ public class IdentityAndGuardTests
         AssertForbiddenBeforeLlm(h, answer, AuditReasons.InvalidIdentity);
         Assert.Empty(h.StudentDataCalls);
         Assert.Equal(["/programas", "/programas/ING-SIS/estudiantes", "/programas/ADM/estudiantes"], h.Api.Calls);
-        Assert.Equal(h.Api.Calls, h.Audit.Resources);
+        Assert.Equal(h.Api.Calls, h.Log.ResourcesConsulted);
     }
 
     [Fact]
@@ -80,7 +81,7 @@ public class IdentityAndGuardTests
         Assert.Equal(0, answer.Tokens);
         Assert.Equal(AuditReasons.DependencyUnavailable, answer.Reason);
         Assert.Equal(0, h.Llm.CallCount);
-        Assert.NotEmpty(h.Audit.Resources);
+        Assert.NotEmpty(h.Log.ResourcesConsulted);
     }
 
     // ESC-ENT-01: a 400 is also completed in the audit context, with its reason.
@@ -91,7 +92,7 @@ public class IdentityAndGuardTests
         var answer = await h.AskStudentAsync("   ");
 
         Assert.Equal(AssistantOutcome.InvalidRequest, answer.Outcome);
-        Assert.Equal(AuditReasons.InvalidRequest, Assert.Single(h.Audit.Completed).Reason);
+        Assert.Equal(AuditReasons.InvalidRequest, h.Log.Reason);
         Assert.Empty(h.Api.Calls);
     }
 
