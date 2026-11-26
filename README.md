@@ -10,7 +10,7 @@ Asistente académico para estudiantes y coordinadores. Responde con base en el r
 ## Requisitos
 
 - Docker con Docker Compose 2.24 o superior.
-- Para desarrollar y ejecutar pruebas: .NET 10 SDK y Node.js 22 o superior.
+- Para desarrollar y ejecutar pruebas: .NET 10 SDK y Node.js 22.22.2 o superior dentro de la rama 22, 24.15.0 o superior dentro de la 24, o 26 o superior (requisito de `jsdom`).
 - Una API key de Gemini. Para ejecutar los evals completos conviene una clave con alta disponibilidad (ver `REPORTE.md`, Limitaciones).
 
 ## Ejecutar el sistema
@@ -72,7 +72,7 @@ docker compose up -d --build --wait
 dotnet run --project evals/TutorFlow.Evals -c Release -- --file banco.md --delay-ms 15000
 ```
 
-- Ejecuta un archivo de escenarios cada vez (`--file`) o escenarios sueltos (`--only ESC-BAN-01,ESC-BAN-02`).
+- `--file` admite uno o varios archivos separados por comas, y `--only` escenarios sueltos (`--only ESC-BAN-01,ESC-BAN-02`). Con una clave de capa gratuita conviene ir archivo por archivo.
 - Con una clave de capa gratuita, mantén una pausa entre preguntas (`--delay-ms`) para no superar el límite por minuto.
 - `--list` lista los escenarios sin usar red ni clave.
 - Los informes quedan en `var/evals/`.
