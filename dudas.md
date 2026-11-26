@@ -541,3 +541,39 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** la pasada completa y limpia de `evals/` que verifica los PR #26 a #29 con el LLM real. El stack quedó detenido (`docker compose stop`).
 - **Propuesta:** el responsable amplía la cuota o el plan de la clave, o espera al reinicio diario de la cuota, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios (con memoria libre suficiente, DUDA-43).
 - **Respuesta:** _Resuelta: el responsable actualizó la `LLM_API_KEY` (2026-11-26). Nota del orquestador: la nueva clave tiene un límite por minuto bajo, así que los evals se ejecutan con pausa entre preguntas._
+
+## DUDA-46 · Retirar una cita válida pero fuera de tema (Artículo 11 en ESC-BAN-04)
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f5d (PR #35)
+- **Referencia:** R-ARQ-03, R-RES-01, ESC-BAN-04, DUDA-44
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** en una pregunta general sobre el cálculo de la definitiva, el modelo añade a veces la cita del Artículo 11 (pérdida por inasistencia). El validador la retira solo si se cumplen tres condiciones: no se consultaron datos del estudiante, la pregunta no menciona la asistencia y la respuesta cita Evaluación Sección 3. El texto del modelo no se modifica, así que podría mencionar la inasistencia sin su cita.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantener esta regla acotada (solo puede quitar esa cita, nunca añade ni edita texto) y retirarla si el responsable prefiere conservar la cita y aceptar el fallo de ESC-BAN-04.
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-47 · Cita del Artículo 7 retirada en preguntas generales sobre habilitación
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** nucleo / nucleo/f5e (PR #37)
+- **Referencia:** R-RES-01, R-ARQ-03, ESC-CIT-01, DUDA-44, DUDA-46
+- **Tipo:** ambigüedad
+- **Bloqueante:** no
+- **Descripción:** el validador retira la cita del Artículo 7 cuando no se usaron datos del estudiante, el Artículo 6 está citado y la pregunta no trata asignaturas no habilitables (detectado por palabras). Es el mismo criterio que DUDA-46 para el Artículo 11: si el modelo escribe igual la frase sobre asignaturas no habilitables, queda sin cita. Se decide junto con DUDA-46.
+- **Qué quedó pendiente:** nada.
+- **Propuesta:** mantener la regla (solo puede quitar esa cita, nunca añade ni edita texto).
+- **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-48 · Cuota de la nueva clave agotada durante la verificación final
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / —
+- **Referencia:** F5, CL-23, DUDA-45
+- **Tipo:** atasco (5 intentos)
+- **Bloqueante:** sí
+- **Descripción:** con la clave nueva, la quinta pasada ejecutó 138 escenarios: 113 aprobados, 2 fallos reales (ESC-CIT-01 y ESC-COO-04, corregidos después en el PR #37) y 22 respuestas 503 por el límite de la clave. Al reintentar esos 22 y `simulacion.md` (7), Gemini respondió `HTTP 429: You exceeded your current quota` de forma persistente (17 respuestas 429 y 4 sondeos fallidos en 8 minutos).
+- **Qué quedó pendiente:** ejecutar los 22 escenarios con 503, `simulacion.md` y la verificación del PR #37 con el LLM real.
+- **Propuesta:** el responsable amplía la cuota de la clave o espera a su reinicio, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo> --delay-ms 20000` (la pausa evita el límite por minuto).
+- **Respuesta:** _(pendiente del responsable)_

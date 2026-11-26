@@ -11,7 +11,7 @@ Estado de la fábrica por fase (FABRICA §5). Lo actualiza el orquestador al cer
 | F2 · Asistente y seguridad | Cerrada | #12, #13, #14, #15 | 2026-11-26 |
 | F3 · Integración | Cerrada | #17 | 2026-11-26 |
 | F4 · Frontend | Cerrada | #19, #20, #21 | 2026-11-26 |
-| F5 · Pruebas finales | En curso | #23–#29 | — |
+| F5 · Pruebas finales | En curso (bloqueada: DUDA-48, cuota) | #23–#37 | — |
 
 PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16 (cierre de F2), #18 (cierre de F3), #22 (cierre de F4) y el del estado de F5.
 
@@ -83,7 +83,8 @@ PR de documentación del orquestador: #3 (cierre de F0), #11 (cierre de F1), #16
 | 2 | + PR #25 (reintentos) y #26 (instrucciones) | 83 de 145 (1 no ejecutado: cuota) | 17 | 44 | Costo aproximado de la pasada: 0,07 USD. |
 | 3 (parcial) | + PR #27 (salida "sin información", cifras y citas) | 41 de 66 (banco, estudiante, coordinador) | 3 | 22 | `estudiante.md`: los 9 fallos son 503 del proveedor. Cortada por memoria del equipo (DUDA-43). |
 | 4 | + PR #29, clave nueva del responsable | **130 de 145** (1 no ejecutado: cuota) | 7 | 7 (timeouts de 30 s) | Con pausa de 12 s entre preguntas para respetar el límite por minuto de la clave; los 503 por ese límite se reejecutaron. Costo aproximado: 0,06 USD. |
+| 5 | + PR #33 a #36 (límite de 4 llamadas, nombre de pila → pedir ID, búsqueda con raíces, partículas en la barrera) | **113 de 115 con respuesta del LLM**; banco 10/10, abuso 10/10 | 2 (corregidos en el PR #37) | 22 + `simulacion.md` sin ejecutar | La cuota de la clave nueva se agotó al reintentar (DUDA-48). Costo aproximado: 0,03 USD. |
 
 **Correcciones derivadas de F5:** PR #25 (conocimiento: reintento de errores transitorios del proveedor dentro de los 30 s), PR #26 y #27 (nucleo: uso correcto de `rechazar`, salida 200 "sin información", cifras y nombres en las respuestas, citas de reglas, desglose del promedio) con revisión, y PR #23, #24 y #28 (deuda técnica: fórmula de costo única y motivo de "no habilitable" en Domain). Tercera ronda de nucleo (PR #29) para los 3 fallos restantes: citas de ESC-BAN-04 y ESC-COO-01 (completadas por el backend y validadas con el índice, DUDA-44) búsqueda previa antes de responder "sin información" (ESC-BAN-07) y motivo de "no habilitable" tomado de Domain (DUDA-42, ESC-EST-03/04). Pendiente de verificar con el LLM real.
 
-**Pendiente:** el responsable liberó memoria y actualizó la clave (DUDA-43 y DUDA-45 resueltas); la cuarta pasada dio 130 de 145. Cuarta ronda de correcciones en curso (ESC-COO-13 nombre de pila → pedir ID, ESC-COO-06, ESC-CIT-06, ESC-CIT-10, ESC-RAR-19, ESC-BAN-04) límite de 4 llamadas al LLM por pregunta (DUDA-29) y partículas y palabras cortas ignoradas en la barrera determinista (DUDA-26, seguridad), seguida de una verificación final.
+**Pendiente:** ejecutar con el LLM real los 22 escenarios que recibieron 503 por cuota, `simulacion.md` y la verificación del PR #37 (DUDA-48, bloqueante, del responsable: cuota de la clave). Rondas de corrección cerradas: PR #26, #27, #29, #35 y #37 (nucleo), #25 y #36 (conocimiento), #34 (seguridad), #33 (devops); dudas pendientes de decisión: DUDA-05, DUDA-11, DUDA-46 y DUDA-47.
