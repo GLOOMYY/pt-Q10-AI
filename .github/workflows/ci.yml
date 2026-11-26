@@ -5,7 +5,8 @@
 #   commit-format    · validates format and trailer of every non-merge commit of the PR,
 #                      with the same .githooks/commit-msg script used locally.
 #   compose-smoke    · docker compose up with no manual setup, the backend must be able to
-#                      write the audit volume, then GET /api/salud must return 200.
+#                      write the audit volume and contain the corpus documents, then
+#                      GET /api/salud must return 200.
 #
 # The LLM key is a fake value: the LLM is a test double in tests/ and in CI (AGENTS §7, §8).
 # Actions are pinned by commit SHA (the version tag is kept in a comment).
@@ -100,6 +101,18 @@ jobs:
         run: |
           docker compose exec -T backend sh -c 'test "$(id -u)" = 1654 && touch /app/var/auditoria/.probe && rm /app/var/auditoria/.probe'
           echo "Audit volume is writable by the backend user (UID 1654)."
+
+      # The knowledge base (R-FUE-01) reads the three indexed documents from the image. Only those
+      # files may be there: no other material/ content and no secrets (R-DEP-04).
+      - name: The corpus documents are in the backend image
+        run: |
+          docker compose exec -T backend sh -c '
+            for f in reglamento_academico_2025.md evaluacion_y_calificaciones.md bienestar_y_becas.md; do
+              test -f "/app/material/reglamento/$f" || { echo "missing corpus document: $f"; exit 1; }
+            done
+            test ! -e /app/material/mock-api && test ! -e /app/material/reglamento/reglamento_academico_2023.md
+          '
+          echo "Corpus documents are in the backend image."
 
       - name: GET /api/salud must return 200
         run: |
