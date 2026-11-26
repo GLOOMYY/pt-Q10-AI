@@ -208,6 +208,26 @@ public class StudentToolsTests
             Text(Course(report, "BD-203").GetProperty("asistencia"), "resumen"));
     }
 
+    // ESC-EST-04, DUDA-42, R-HAB-01: a course lost with a final grade below 2.0 says why it is not habilitable, citing
+    // only Artículo 6 (Artículo 7 is for absences, internships and degree projects).
+    [Fact]
+    public async Task Not_habilitable_reason_comes_from_the_domain()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Microeconomía no es habilitable (1.8).", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Puedo habilitar Microeconomía?", "EST-005");
+
+        var habilitation = h.ToolResult().GetProperty("habilitacion");
+        var micro = Assert.Single(habilitation.GetProperty("perdidasNoHabilitables").EnumerateArray());
+        Assert.Equal("Microeconomía", Text(micro, "asignatura"));
+        Assert.Equal("definitiva menor que 2.0: no es habilitable (Artículo 6)", Text(micro, "motivo"));
+        Assert.Equal(
+            ["Artículo 6"],
+            habilitation.GetProperty("reglasACitar").EnumerateArray().Select(c => Text(c, "seccion")));
+    }
+
     // ESC-SIM-08, R-RES-02: the simulation summary shows the accumulated grade it starts from.
     [Fact]
     public async Task Simulation_summary_shows_the_accumulated_grade()

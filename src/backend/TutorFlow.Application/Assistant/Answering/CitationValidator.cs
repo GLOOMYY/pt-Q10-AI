@@ -22,12 +22,18 @@ public sealed record ValidatedAnswer(string Text, IReadOnlyList<Citation> Citati
 /// documentos disponibles." with no citations (CL-18, R-RES-03).</description></item>
 /// <item><description>If data were used and the model proposed no valid data citation, the backend adds the data
 /// citations of the data used (R-RES-02).</description></item>
+/// <item><description>A rule the consulted data really involve (<see cref="ToolRunState.BackedRules"/>) is added when
+/// the answer applies it without citing it (R-RES-02: data + rule).</description></item>
+/// <item><description>An answer that cites Evaluación "Sección 3" and states the weights of the cuts also cites
+/// "Sección 2", where they are defined (R-RES-01, R-CAL-01).</description></item>
 /// </list>
 /// </summary>
 public sealed partial class CitationValidator
 {
     /// <summary>Answer when the information is not in the documents nor in the data (R-RES-03, CL-14, CL-18).</summary>
     public const string NoInformationText = "No encuentro esa información en los documentos disponibles.";
+
+    private const string EvaluationDocument = "evaluacion_y_calificaciones.md";
 
     private readonly IKnowledgeBase _knowledge;
 
@@ -78,7 +84,48 @@ public sealed partial class CitationValidator
             valid.AddRange(allowedData);
         }
 
+        AddBackedRules(TextNormalizer.Normalize(proposed.Text), valid, state);
+        AddCutWeights(proposed.Text, valid);
         return new ValidatedAnswer(proposed.Text, valid);
+    }
+
+    /// <summary>
+    /// R-RES-02 (data + rule): a rule that the consulted data really involve (e.g. Artículo 11 for a course lost by
+    /// absences) is cited when the answer applies it and the model forgot its citation (ESC-COO-01).
+    /// </summary>
+    private void AddBackedRules(string normalizedText, List<Citation> valid, ToolRunState state)
+    {
+        foreach (var rule in state.BackedRules)
+        {
+            if (!valid.Contains(rule.Citation)
+                && _knowledge.IsCitable(rule.Citation)
+                && Regex.IsMatch(normalizedText, $@"\b{Regex.Escape(rule.Trigger)}", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)))
+            {
+                valid.Add(rule.Citation);
+            }
+        }
+    }
+
+    /// <summary>
+    /// R-RES-01, R-CAL-01 (ESC-BAN-04): the definitive grade of Sección 3 is computed "según sus pesos", and the weights
+    /// of the cuts (30 %, 30 %, 40 %) are defined in Sección 2. An answer that cites Sección 3 and states those weights
+    /// also cites Sección 2, just before Sección 3 (document order).
+    /// </summary>
+    private void AddCutWeights(string text, List<Citation> valid)
+    {
+        var formula = new Citation(EvaluationDocument, "Sección 3");
+        var weights = new Citation(EvaluationDocument, "Sección 2");
+        var index = valid.IndexOf(formula);
+        if (index < 0
+            || valid.Contains(weights)
+            || !_knowledge.IsCitable(weights)
+            || !Weight30Pattern().IsMatch(text)
+            || !Weight40Pattern().IsMatch(text))
+        {
+            return;
+        }
+
+        valid.Insert(index, weights);
     }
 
     /// <summary>
@@ -144,4 +191,10 @@ public sealed partial class CitationValidator
 
     [GeneratedRegex(@"^Secci[oó]n\s+([0-9]+(?:\.[0-9]+)?)$", RegexOptions.CultureInvariant)]
     private static partial Regex SectionPattern();
+
+    [GeneratedRegex(@"(?<![0-9.,])30\s*(%|por\s*ciento)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, 1000)]
+    private static partial Regex Weight30Pattern();
+
+    [GeneratedRegex(@"(?<![0-9.,])40\s*(%|por\s*ciento)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, 1000)]
+    private static partial Regex Weight40Pattern();
 }

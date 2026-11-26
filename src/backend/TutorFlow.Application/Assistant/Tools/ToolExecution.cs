@@ -51,6 +51,11 @@ public sealed record ToolExecution
     public static ToolExecution Rejected(string reason) => new(ToolExecutionKind.Rejected, default, reason);
 }
 
+/// <summary>A rule that the data of a request involve, and the word that shows an answer applies it.</summary>
+/// <param name="Citation">The document citation of the rule.</param>
+/// <param name="Trigger">Normalized word prefix (see <see cref="TextNormalizer.Normalize"/>), e.g. <c>inasistencia</c>.</param>
+public sealed record RuleBacking(Citation Citation, string Trigger);
+
 /// <summary>
 /// What the tools of one request used, to compute <c>usoDatosEstudiante</c> (R-RES-04) and the data citations that
 /// may be returned (R-RES-02). One instance per request: nothing survives between questions (R-RES-07).
@@ -58,6 +63,7 @@ public sealed record ToolExecution
 public sealed class ToolRunState
 {
     private readonly List<ProgramId> _programs = [];
+    private readonly List<RuleBacking> _rules = [];
 
     /// <summary>Whether academic data of a student was consulted to answer (R-RES-04).</summary>
     public bool UsedStudentData { get; private set; }
@@ -73,6 +79,27 @@ public sealed class ToolRunState
 
     /// <summary>The period of <c>GET /salud</c>, once a data tool has fetched it.</summary>
     public string? Period { get; set; }
+
+    /// <summary>
+    /// Rules the data of this request really involve, each with the normalized word that shows the answer applies it
+    /// (e.g. Artículo 11 when a consulted course was lost by absences). The citation validator adds a missing one when
+    /// the answer uses it (R-RES-02: data + rule).
+    /// </summary>
+    public IReadOnlyList<RuleBacking> BackedRules => _rules;
+
+    /// <summary>Records a rule that the data of this request involve.</summary>
+    /// <param name="citation">The document citation of the rule; it must exist in the index.</param>
+    /// <param name="trigger">Normalized word prefix whose presence in the answer shows the rule is applied.</param>
+    public void BackRule(Citation citation, string trigger)
+    {
+        ArgumentNullException.ThrowIfNull(citation);
+        ArgumentException.ThrowIfNullOrWhiteSpace(trigger);
+        var backing = new RuleBacking(citation, trigger);
+        if (!_rules.Contains(backing))
+        {
+            _rules.Add(backing);
+        }
+    }
 
     /// <summary>Records that a student used their own grades and attendance.</summary>
     public void MarkOwnData()

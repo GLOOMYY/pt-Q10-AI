@@ -208,7 +208,10 @@ public static class StudentReport
             ["asignaturasPerdidas"] = new JsonObject
             {
                 ["estudiantes"] = lost,
-                ["reglaACitar"] = RuleCitation(Regulation, "Artículo 5"),
+                // R-RES-02, ESC-COO-01: a loss by absences in the list is also supported by Artículo 11.
+                ["reglasACitar"] = lostByAbsences.Count > 0
+                    ? new JsonArray(RuleCitation(Regulation, "Artículo 5"), RuleCitation(Regulation, "Artículo 11"))
+                    : new JsonArray(RuleCitation(Regulation, "Artículo 5")),
             },
             ["perdidaPorInasistencia"] = new JsonObject
             {
@@ -267,7 +270,7 @@ public static class StudentReport
             ["asignatura"] = c.Name,
             ["definitiva"] = c.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData,
             ["motivo"] = c.Outcome == CourseOutcome.LostByAbsences
-                ? "perdida por inasistencia (definitiva 0.0)"
+                ? "perdida por inasistencia (definitiva 0.0, Artículo 11)"
                 : $"definitiva menor que {NumberFormat.Grade(GradingRules.PassingGrade)}",
         }),
     ];
@@ -280,6 +283,7 @@ public static class StudentReport
     {
         var habilitable = new JsonArray();
         var notHabilitable = new JsonArray();
+        var citesArticle7 = false;
         foreach (var course in evaluation.LostCourses)
         {
             var grade = course.FinalGrade is { } final ? NumberFormat.Grade(final) : NoData;
@@ -289,23 +293,24 @@ public static class StudentReport
             }
             else
             {
+                // DUDA-42: the reason comes from Domain, so the answer explains exactly why (R-HAB-01, R-HAB-02).
+                var reason = course.NotHabilitableReason;
+                citesArticle7 |= reason is not NotHabilitableReason.GradeBelowMinimum
+                    and not NotHabilitableReason.NoFinalGrade
+                    and not NotHabilitableReason.AlreadyPassed;
                 notHabilitable.Add(new JsonObject
                 {
                     ["asignatura"] = course.Name,
                     ["definitiva"] = grade,
-                    // Domain gives the status, not the reason: only the loss by absences (a domain outcome) is
-                    // named; any other case is worded neutrally so that it is never false (R-HAB-01, R-HAB-02).
                     ["motivo"] = course.Habilitation == HabilitationStatus.Undetermined
                         ? "no determinable"
-                        : course.Outcome == CourseOutcome.LostByAbsences
-                            ? "perdida por inasistencia: no es habilitable (Artículo 7)"
-                            : "no cumple las condiciones de habilitación de los Artículos 6 y 7",
+                        : NotHabilitableText(reason),
                 });
             }
         }
 
         var rules = new JsonArray { RuleCitation(Regulation, "Artículo 6") };
-        if (notHabilitable.Count > 0)
+        if (citesArticle7)
         {
             rules.Add(RuleCitation(Regulation, "Artículo 7"));
         }
@@ -317,6 +322,23 @@ public static class StudentReport
             ["reglasACitar"] = rules,
         };
     }
+
+    /// <summary>
+    /// Spanish explanation of why a course is not habilitable, with the article that says so (R-HAB-01, R-HAB-02,
+    /// DUDA-42). <see cref="NotHabilitableReason.None"/> keeps a neutral wording so that it is never false.
+    /// </summary>
+    /// <param name="reason">The reason given by Domain.</param>
+    /// <returns>The text for the model.</returns>
+    public static string NotHabilitableText(NotHabilitableReason reason) => reason switch
+    {
+        NotHabilitableReason.LostByAbsences => "perdida por inasistencia: no es habilitable (Artículo 7)",
+        NotHabilitableReason.NonHabilitableType => "práctica profesional o trabajo de grado: no es habilitable (Artículo 7)",
+        NotHabilitableReason.GradeBelowMinimum =>
+            $"definitiva menor que {NumberFormat.Grade(HabilitationRules.MinimumFinalGrade)}: no es habilitable (Artículo 6)",
+        NotHabilitableReason.NoFinalGrade => "sin definitiva todavía: no se puede habilitar",
+        NotHabilitableReason.AlreadyPassed => "aprobada: no hay nada que habilitar",
+        _ => "no cumple las condiciones de habilitación de los Artículos 6 y 7",
+    };
 
     private static string AverageText(StudentEvaluation evaluation) => evaluation.Average is { } average
         ? NumberFormat.Average(average.Value) + (average.IsProvisional ? " (provisional)" : string.Empty)
