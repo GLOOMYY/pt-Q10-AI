@@ -1,19 +1,16 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using TutorFlow.Api.Endpoints;
-using TutorFlow.Application;
+using TutorFlow.Api.Tests.Support;
+using TutorFlow.Testing.Llm;
 using Xunit;
 
 namespace TutorFlow.Api.Tests;
 
 /// <summary>
 /// Contract of <c>POST /api/asistente/preguntar</c> (SPEC §5, §5.0): the ESC-ENT scenarios that depend only on the
-/// contract (400) and on the identity format (403). The host composes AddApplication() and MapAssistant() directly,
-/// so it does not depend on the composition in Program.cs.
+/// contract (400) and on the identity format (403). The host composes AddApplication() and MapAssistant() directly
+/// with the test doubles (AssistantTestHost), so it does not depend on the composition in Program.cs.
 /// </summary>
 public sealed class AssistantEndpointContractTests : IAsyncLifetime
 {
@@ -21,26 +18,20 @@ public sealed class AssistantEndpointContractTests : IAsyncLifetime
     private const string InvalidRequestText = "La solicitud no es válida.";
     private const string ForbiddenText = "No estás autorizado a obtener esa información.";
 
-    private WebApplication _app = null!;
+    private AssistantTestHost _host = null!;
     private HttpClient _client = null!;
 
     public async Task InitializeAsync()
     {
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.UseTestServer();
-        builder.Services.AddApplication();
-        _app = builder.Build();
-        _app.MapHealth();
-        _app.MapAssistant();
-        await _app.StartAsync();
-        _client = _app.GetTestClient();
+        _host = await AssistantTestHost.StartAsync();
+
+        // A valid request reaches the fake LLM, which answers from the documents (AGENTS §8).
+        _host.Llm.Respond(_ => FakeLlmReply.FromText(
+            AssistantTestHost.Final("La nota mínima es 3.0.", ("reglamento_academico_2025.md", "Artículo 5"))));
+        _client = _host.Client;
     }
 
-    public async Task DisposeAsync()
-    {
-        _client.Dispose();
-        await _app.DisposeAsync();
-    }
+    public async Task DisposeAsync() => await _host.DisposeAsync();
 
     // escenarios/README.md §3.3
     private static string T1000()
