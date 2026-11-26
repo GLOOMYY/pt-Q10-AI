@@ -2,4 +2,9 @@
   <ItemGroup>
     <ProjectReference Include="..\TutorFlow.Domain\TutorFlow.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Microsoft.Extensions.* abstractions (DI, Options, Logging) for AddApplication(), same as Infrastructure.
+         No ASP.NET Core type is used in this layer (AGENTS 5). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 </Project>
