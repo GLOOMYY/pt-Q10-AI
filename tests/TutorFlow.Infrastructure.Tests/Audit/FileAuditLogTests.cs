@@ -56,8 +56,8 @@ public sealed class FileAuditLogTests : IDisposable
         var stdoutLines = stdout.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         Assert.Equal(2, fileLines.Length);
         Assert.Equal(fileLines, stdoutLines);
-        Assert.Equal("c1", JsonDocument.Parse(fileLines[0]).RootElement.GetProperty("correlationId").GetString());
-        Assert.Equal("c2", JsonDocument.Parse(fileLines[1]).RootElement.GetProperty("correlationId").GetString());
+        Assert.Equal("c1", JsonElement.Parse(fileLines[0]).GetProperty("correlationId").GetString());
+        Assert.Equal("c2", JsonElement.Parse(fileLines[1]).GetProperty("correlationId").GetString());
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class FileAuditLogTests : IDisposable
 
         var lines = await File.ReadAllLinesAsync(FilePath, Encoding.UTF8);
         Assert.Equal(200, lines.Length);
-        var ids = lines.Select(l => JsonDocument.Parse(l).RootElement.GetProperty("correlationId").GetString()).ToHashSet();
+        var ids = lines.Select(l => JsonElement.Parse(l).GetProperty("correlationId").GetString()).ToHashSet();
         Assert.Equal(200, ids.Count);
     }
 
