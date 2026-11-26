@@ -131,19 +131,70 @@ public sealed class AuditTrailMiddlewareTests
     }
 
     [Fact]
-    public async Task Unhandled_exception_is_recorded_once_with_status_500()
+    public async Task Unhandled_exception_gets_an_empty_500_with_the_header_and_one_record_R_LOG_09()
     {
         var (client, log, app) = await StartAsync((_, _) => throw new InvalidOperationException("provider-quoted-secret"));
         await using var _ = app;
 
-        // TestServer surfaces the exception to the caller; Kestrel would answer 500, which is what is recorded.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.SendAsync(Post("boom-1")));
+        var response = await client.SendAsync(Post("boom-1"));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("boom-1", Assert.Single(response.Headers.GetValues(CorrelationId.HeaderName)));
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
         var record = log.GetByCorrelationId("boom-1");
+        Assert.Single(log.Records);
         Assert.Equal(500, record.Status);
 
         // R-LOG-02, R-LOG-05: no exception text (it may quote the request or the LLM provider's error) reaches the record.
         Assert.DoesNotContain("provider-quoted-secret", AuditJson.Serialize(record), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Exception_after_the_response_started_is_recorded_with_the_status_already_sent()
+    {
+        var (client, log, app) = await StartAsync(async (h, _) =>
+        {
+            h.Response.StatusCode = 200;
+            await h.Response.WriteAsync("partial");
+            await h.Response.Body.FlushAsync();
+            throw new InvalidOperationException("late");
+        });
+        await using var _ = app;
+
+        try
+        {
+            using var response = await client.SendAsync(Post("late-1"));
+        }
+        catch (Exception)
+        {
+            // TestServer reports the aborted connection to the caller; the record is what matters here.
+        }
+
+        Assert.Equal(200, log.GetByCorrelationId("late-1").Status);
         Assert.Single(log.Records);
+    }
+
+    [Fact]
+    public async Task Unhandled_exception_on_other_paths_still_carries_the_header()
+    {
+        var log = new InMemoryAuditLog();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddAudit();
+        builder.Services.AddSingleton<IAuditLog>(log);
+        builder.Services.AddSingleton<IClock, FixedClock>();
+        await using var app = builder.Build();
+        app.UseAuditTrail();
+        app.MapGet("/api/salud", (Func<IResult>)(() => throw new InvalidOperationException("x")));
+        await app.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/salud");
+        request.Headers.Add(CorrelationId.HeaderName, "h-1");
+        var response = await app.GetTestClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("h-1", Assert.Single(response.Headers.GetValues(CorrelationId.HeaderName)));
+        Assert.Empty(log.Records);
     }
 
     [Fact]

@@ -11,9 +11,9 @@ namespace TutorFlow.Application.Security.Defenses;
 public static class TextNormalizer
 {
     /// <summary>
-    /// Lower-cases, decomposes (compatibility form, so full-width <c>ＥＳＴ</c> becomes <c>est</c>), drops the accents
+    /// Lower-cases, decomposes (compatibility form, so full-width letters such as U+FF25 become plain ASCII), drops the accents
     /// and invisible format characters, turns every dash into <c>-</c> and collapses runs of white space into one
-    /// space. The <c>ñ</c> is kept: it is a different letter in Spanish, not an accent on <c>n</c> (escenarios/README §4.1).
+    /// space. The letter n with tilde (U+00F1) is kept: it is a different letter in Spanish, not an accent on <c>n</c> (escenarios/README section 4.1).
     /// </summary>
     /// <param name="text">Any text; <see langword="null"/> gives an empty string.</param>
     /// <returns>The normalized text, trimmed.</returns>
@@ -34,8 +34,8 @@ public static class TextNormalizer
 
             if (category == UnicodeCategory.NonSpacingMark)
             {
-                // Keep the tilde of the ñ (n + U+0303); drop any other accent.
-                if (c == '̃' && builder.Length > 0 && builder[^1] == 'n' && !pendingSpace)
+                // Keep the tilde of the n with tilde (n + U+0303); drop any other accent.
+                if (c == '\u0303' && builder.Length > 0 && builder[^1] == 'n' && !pendingSpace)
                 {
                     builder.Append(c);
                 }
@@ -60,7 +60,7 @@ public static class TextNormalizer
                 pendingSpace = false;
             }
 
-            builder.Append(category == UnicodeCategory.DashPunctuation || c == '−'
+            builder.Append(category == UnicodeCategory.DashPunctuation || c == '\u2212'
                 ? '-'
                 : char.ToLowerInvariant(c));
         }

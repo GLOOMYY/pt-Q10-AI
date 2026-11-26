@@ -39,33 +39,38 @@ public sealed partial class SystemExtractionDefense : IQuestionDefense
             || RevealOwnInstructions().IsMatch(text);
     }
 
+    // Only unmistakable wording about the assistant itself. Words that can also refer to the regulations ("prompt" alone,
+    // "reglas internas", "lista de funciones", "herramientas disponibles", "sus reglas") are NOT matched: the model decides
+    // those with `rechazar`.
+
     // The key, environment variables and the .env file.
     [GeneratedRegex(
         @"llm_api_key|\bapi[ _-]?key\b|\bapikey\b|\bclave (?:de la |del )?api\b|\bvariables? de entorno\b|\benvironment variables?\b|(?<![\w])\.env\b",
         RegexOptions.CultureInvariant)]
     private static partial Regex Secret();
 
-    // "prompt de sistema", "system prompt", or the word prompt on its own.
-    [GeneratedRegex(@"\bprompts?\b", RegexOptions.CultureInvariant)]
+    // "tu prompt de sistema", "system prompt", "your prompt".
+    [GeneratedRegex(@"\bsystem prompt\b|\bprompt (?:de |del )?sistema\b|\b(?:tu|tus|your) prompts?\b", RegexOptions.CultureInvariant)]
     private static partial Regex SystemPrompt();
 
+    // "tus instrucciones internas", "instrucciones del sistema", "system message", "hidden instructions".
     [GeneratedRegex(
-        @"\b(?:instrucciones|reglas|mensajes?) (?:internas?|ocultas?|secretas?|de sistema|del sistema|del desarrollador)\b|\b(?:system|hidden|internal) (?:message|instructions?)\b",
+        @"\b(?:tus|your) (?:instrucciones|instructions) (?:internas?|ocultas?|secretas?|del sistema|de sistema|iniciales|originales)\b|\binstrucciones (?:del|de) sistema\b|\b(?:system|hidden) (?:message|instructions?)\b",
         RegexOptions.CultureInvariant)]
     private static partial Regex InternalInstructions();
 
-    // "la lista de herramientas que tienes", "tus herramientas", "your tools".
+    // "la lista de tus herramientas", "las herramientas que tienes", "qué herramientas usas", "your tools".
     [GeneratedRegex(
-        @"\blista de (?:tus |las |sus )?(?:herramientas|tools|funciones)\b|\bherramientas (?:tienes|usas|dispones|que tienes|que usas|que puedes usar|disponibles|internas|de las que dispones)\b|\b(?:tus|your) (?:herramientas|tools)\b|\bwhat tools\b",
+        @"\blista de (?:tus|sus) (?:herramientas|tools|funciones)\b|\bherramientas que (?:tienes|usas|puedes usar)\b|\bque herramientas (?:tienes|usas|puedes usar)\b|\b(?:tus|your) (?:herramientas|tools)\b|\bwhat tools\b",
         RegexOptions.CultureInvariant)]
     private static partial Regex ToolList();
 
-    [GeneratedRegex(@"\b(?:tu|tus|su|sus|your) (?:configuracion|configuraciones|configuration|config)\b", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\b(?:tu|your) (?:configuracion|configuration) (?:interna|del sistema|de sistema|internal)\b", RegexOptions.CultureInvariant)]
     private static partial Regex OwnConfiguration();
 
     // "muéstrame tus instrucciones", "repeat your instructions": a request verb followed by "your instructions".
     [GeneratedRegex(
-        @"\b(?:muestra|muestrame|dime|revela|repite|imprime|copia|show|reveal|print|repeat|tell me|dame)\b(?:\W+\w+){0,5}?\W+(?:tus|your|sus) (?:instrucciones|instructions|reglas|rules)\b",
+        @"\b(?:muestra|muestrame|dime|revela|repite|imprime|copia|show|reveal|print|repeat|tell me)\b(?:\W+\w+){0,5}?\W+(?:tus|your) (?:instrucciones|instructions)\b",
         RegexOptions.CultureInvariant)]
     private static partial Regex RevealOwnInstructions();
 }
