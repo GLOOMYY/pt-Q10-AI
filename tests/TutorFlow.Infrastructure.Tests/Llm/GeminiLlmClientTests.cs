@@ -51,7 +51,7 @@ public sealed class GeminiLlmClientTests
         var tool = new LlmToolDefinition(
             "consultar_notas",
             "Returns the grades of the user.",
-            JsonDocument.Parse("""{"type":"object","properties":{"periodo":{"type":"string"}}}""").RootElement.Clone());
+            JsonElement.Parse("""{"type":"object","properties":{"periodo":{"type":"string"}}}"""));
         return new LlmRequest("Eres un tutor.", [LlmMessage.User("hola")], [tool], ResponseSchema: schema);
     }
 
@@ -102,7 +102,7 @@ public sealed class GeminiLlmClientTests
     public async Task Request_WithResponseSchema_AsksForStructuredJson()
     {
         var (client, handler) = CreateReturning(HttpStatusCode.OK, TextReply);
-        var schema = JsonDocument.Parse("""{"type":"object","properties":{"respuesta":{"type":"string"}}}""").RootElement.Clone();
+        var schema = JsonElement.Parse("""{"type":"object","properties":{"respuesta":{"type":"string"}}}""");
 
         await client.CompleteAsync(SampleRequest(schema), CancellationToken.None);
 
@@ -116,8 +116,8 @@ public sealed class GeminiLlmClientTests
     public async Task Request_EchoesToolCallsWithThoughtSignatureAndToolResults()
     {
         var (client, handler) = CreateReturning(HttpStatusCode.OK, TextReply);
-        var args = JsonDocument.Parse("""{"periodo":"2025-1"}""").RootElement.Clone();
-        var result = JsonDocument.Parse("""{"notas":[4.5]}""").RootElement.Clone();
+        var args = JsonElement.Parse("""{"periodo":"2025-1"}""");
+        var result = JsonElement.Parse("""{"notas":[4.5]}""");
         var request = new LlmRequest(
             "sys",
             [
