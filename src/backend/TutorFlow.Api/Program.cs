@@ -41,8 +41,16 @@ catch (OptionsValidationException ex)
 // R-LOG-01/07/09: first in the pipeline so every response carries X-Correlation-Id and each request leaves one record.
 app.UseAuditTrail();
 
+// D-14 / R-DEP-01: the built frontend (wwwroot) is served from the same port. Both middlewares are
+// no-ops when wwwroot does not exist (development and CI without frontend).
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapHealth();
 app.MapAssistant();
+
+// SPA fallback: any non-/api path returns index.html; unknown /api/* routes keep answering 404.
+app.MapFallbackToFile("{*path:regex(^(?!api(/|$)).*$)}", "index.html");
 app.Run();
 return 0;
 
