@@ -35,10 +35,18 @@ public sealed class GeminiLlmClientTests
 
     private static (GeminiLlmClient Client, StubHandler Handler) Create(
         Func<HttpRequestMessage, string?, CancellationToken, Task<HttpResponseMessage>> respond,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        int maxRetries = 2,
+        TimeSpan? backoff = null)
     {
         var handler = new StubHandler(respond);
-        var options = new LlmOptions { ApiKey = Key, Timeout = timeout ?? TimeSpan.FromSeconds(30) };
+        var options = new LlmOptions
+        {
+            ApiKey = Key,
+            Timeout = timeout ?? TimeSpan.FromSeconds(30),
+            MaxRetries = maxRetries,
+            RetryBackoff = backoff ?? TimeSpan.FromMilliseconds(1),
+        };
         var http = new HttpClient(handler) { BaseAddress = options.BaseUrl };
         return (new GeminiLlmClient(http, Options.Create(options), NullLogger<GeminiLlmClient>.Instance), handler);
     }
@@ -298,5 +306,142 @@ public sealed class GeminiLlmClientTests
             Assert.DoesNotContain(Key, ex.ToString(), StringComparison.Ordinal);
             Assert.DoesNotContain("hola", ex.Message, StringComparison.Ordinal);
         }
+    }
+
+    private const string Overload = """{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}""";
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task TransientError_IsRetriedAndSucceeds(HttpStatusCode status)
+    {
+        var calls = 0;
+        var (client, _) = Create((_, _, _) =>
+            Task.FromResult(++calls < 3 ? Json(status, Overload) : Json(HttpStatusCode.OK, TextReply)));
+
+        var response = await client.CompleteAsync(SampleRequest(), CancellationToken.None);
+
+        Assert.Equal(3, calls);
+        Assert.Equal("Hola", response.Text);
+        Assert.Equal(1150, response.Usage.TotalTokens); // Only the successful attempt reports tokens (R-RES-05).
+    }
+
+    [Fact]
+    public async Task PersistentTransientError_ThrowsAfterTheConfiguredRetries()
+    {
+        var calls = 0;
+        var (client, _) = Create((_, _, _) =>
+        {
+            calls++;
+            return Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, Overload));
+        });
+
+        var ex = await Assert.ThrowsAsync<DependencyUnavailableException>(
+            () => client.CompleteAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.Equal(ExternalDependency.Llm, ex.Dependency);
+        Assert.Equal(3, calls); // 1 attempt + 2 retries.
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task NonTransientError_IsNotRetried(HttpStatusCode status)
+    {
+        var calls = 0;
+        var (client, _) = Create((_, _, _) =>
+        {
+            calls++;
+            return Task.FromResult(Json(status, """{"error":{"message":"x"}}"""));
+        });
+
+        await Assert.ThrowsAsync<DependencyUnavailableException>(
+            () => client.CompleteAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task Retries_Disabled_MakesASingleCall()
+    {
+        var calls = 0;
+        var (client, _) = Create(
+            (_, _, _) =>
+            {
+                calls++;
+                return Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, Overload));
+            },
+            maxRetries: 0);
+
+        await Assert.ThrowsAsync<DependencyUnavailableException>(
+            () => client.CompleteAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task Retry_IsSkippedWhenTheBackoffDoesNotFitInTheTimeBudget()
+    {
+        var calls = 0;
+        var (client, _) = Create(
+            (_, _, _) =>
+            {
+                calls++;
+                return Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, Overload));
+            },
+            timeout: TimeSpan.FromMilliseconds(300),
+            backoff: TimeSpan.FromSeconds(5));
+
+        var ex = await Assert.ThrowsAsync<DependencyUnavailableException>(
+            () => client.CompleteAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.Equal(1, calls);
+        Assert.Contains("HTTP 503", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TotalTimeout_IncludesTheRetries()
+    {
+        var calls = 0;
+        var (client, _) = Create(
+            async (_, _, ct) =>
+            {
+                calls++;
+                await Task.Delay(TimeSpan.FromMilliseconds(80), ct);
+                return Json(HttpStatusCode.ServiceUnavailable, Overload);
+            },
+            timeout: TimeSpan.FromMilliseconds(300),
+            maxRetries: 50,
+            backoff: TimeSpan.FromMilliseconds(1));
+
+        var ex = await Assert.ThrowsAsync<DependencyUnavailableException>(
+            () => client.CompleteAsync(SampleRequest(), CancellationToken.None));
+
+        Assert.True(calls < 50);
+        Assert.Equal(ExternalDependency.Llm, ex.Dependency);
+    }
+
+    [Fact]
+    public async Task CallerCancellation_DuringBackoff_IsNotRetriedNorMappedTo503()
+    {
+        using var cts = new CancellationTokenSource();
+        var calls = 0;
+        var (client, _) = Create(
+            (_, _, _) =>
+            {
+                calls++;
+                cts.Cancel();
+                return Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, Overload));
+            },
+            backoff: TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => client.CompleteAsync(SampleRequest(), cts.Token));
+
+        Assert.Equal(1, calls);
     }
 }
