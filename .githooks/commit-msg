@@ -5,7 +5,8 @@
 #   - title in Conventional Commits form: type(scope optional): description
 #     with type one of feat|fix|test|ci|docs|refactor|build|chore;
 #   - a blank line before the trailer when there is a body;
-#   - the last line is exactly "Generado-por: Claude Code";
+#   - the last line is exactly "Generado-por: Claude Code" (commits of the factory agents) or
+#     exactly "Generado-por: Humano" (commits made by the responsible person themselves);
 #   - no Co-Authored-By trailer anywhere.
 # Merge commits are exempt (AGENTS §9.2): they carry MERGE_HEAD while the merge is in progress.
 #
@@ -19,11 +20,14 @@
 
 set -u
 
-TRAILER="Generado-por: Claude Code"
+# The two accepted trailers (AGENTS §9.2). "Claude Code" goes in every commit of the factory;
+# "Humano" only in the commits made by the responsible person.
+TRAILER_AGENT="Generado-por: Claude Code"
+TRAILER_HUMAN="Generado-por: Humano"
 
 fail() {
   echo "commit-msg: $1" >&2
-  echo "commit-msg: expected format: type(scope): description / blank line / body / blank line / $TRAILER" >&2
+  echo "commit-msg: expected format: type(scope): description / blank line / body / blank line / last line: '$TRAILER_AGENT' or '$TRAILER_HUMAN'" >&2
   exit 1
 }
 
@@ -72,9 +76,9 @@ if printf '%s\n' "$CLEAN" | grep -Eiq '^co-authored-by:'; then
   fail "Co-Authored-By is not allowed (AGENTS §9.2)."
 fi
 
-# The trailer must be the last line, exactly as written.
-if [ "$LAST" != "$TRAILER" ]; then
-  fail "the last line must be exactly: $TRAILER"
+# The trailer must be the last line, exactly as written: one of the two accepted values.
+if [ "$LAST" != "$TRAILER_AGENT" ] && [ "$LAST" != "$TRAILER_HUMAN" ]; then
+  fail "the last line must be exactly '$TRAILER_AGENT' or '$TRAILER_HUMAN' (found: '$LAST')"
 fi
 
 # The trailer must be separated from the rest by a blank line.
