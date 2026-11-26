@@ -535,7 +535,7 @@ public sealed class AssistantToolbox
     {
         HabilitationStatus.Eligible => "; está perdida y es habilitable (definitiva entre 2.0 y 3.0)",
         HabilitationStatus.Undetermined => "; la habilitación no es determinable",
-        _ => course.IsLost ? "; está perdida y no es habilitable" : string.Empty,
+        _ => course.IsLost ? "; está perdida y no es habilitable: " + StudentReport.NotHabilitableText(course.NotHabilitableReason) : string.Empty,
     };
 
     private static ToolExecution CourseNotFound(StudentEvaluation evaluation, IReadOnlyList<CourseEvaluation> matches) =>
