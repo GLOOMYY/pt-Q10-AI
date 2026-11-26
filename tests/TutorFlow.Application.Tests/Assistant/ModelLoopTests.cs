@@ -55,6 +55,9 @@ public class ModelLoopTests
     public async Task Reject_after_a_data_tool_keeps_the_real_consultations()
     {
         var h = new AssistantHarness();
+
+        // The real model may disobey the order of D-32; the fake is told to script that case on purpose.
+        h.Llm.EnforceRejectBeforeDataTools = false;
         h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
             .EnqueueReject(AuditReasons.ThirdPartyData);
 
