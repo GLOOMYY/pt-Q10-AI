@@ -24,13 +24,17 @@ public sealed partial class GeminiLlmClient : ILlmClient
     private readonly HttpClient _http;
     private readonly LlmOptions _options;
     private readonly ILogger<GeminiLlmClient> _logger;
+    private readonly TimeProvider _time;
 
     /// <summary>Creates the adapter.</summary>
     /// <param name="http">Client whose <c>BaseAddress</c> is the API root.</param>
     /// <param name="options">LLM settings (model, prices, timeout, key).</param>
     /// <param name="logger">Technical logger; receives neither prompts nor the key.</param>
-    public GeminiLlmClient(HttpClient http, IOptions<LlmOptions> options, ILogger<GeminiLlmClient> logger)
+    /// <param name="timeProvider">Clock for the call budget and the retry backoff (system clock when omitted).</param>
+    public GeminiLlmClient(
+        HttpClient http, IOptions<LlmOptions> options, ILogger<GeminiLlmClient> logger, TimeProvider? timeProvider = null)
     {
+        _time = timeProvider ?? TimeProvider.System;
         _http = http ?? throw new ArgumentNullException(nameof(http));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -42,20 +46,34 @@ public sealed partial class GeminiLlmClient : ILlmClient
         ArgumentNullException.ThrowIfNull(request);
 
         var path = $"v1beta/models/{Uri.EscapeDataString(_options.Model)}:generateContent";
-        using var message = new HttpRequestMessage(HttpMethod.Post, path)
-        {
-            Content = JsonContent.Create(GeminiRequestMapper.ToJson(request)),
-        };
-        message.Headers.TryAddWithoutValidation(ApiKeyHeader, _options.ApiKey);
-
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(_options.Timeout);
+        // R-QA-04: the 30 s budget covers the whole call, retries included.
+        using var budget = new CancellationTokenSource(_options.Timeout, _time);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budget.Token);
+        var started = _time.GetTimestamp();
 
         try
         {
-            using var response = await _http.SendAsync(message, timeout.Token);
-            var body = await response.Content.ReadAsStringAsync(timeout.Token);
-            return HandleResponse(response.StatusCode, body);
+            for (var attempt = 0; ; attempt++)
+            {
+                using var message = BuildMessage(path, request);
+                using var response = await _http.SendAsync(message, timeout.Token);
+                var body = await response.Content.ReadAsStringAsync(timeout.Token);
+
+                if (IsTransient(response.StatusCode) && attempt < _options.MaxRetries)
+                {
+                    // Transient provider overload (DUDA-37): retry only while the budget has room for the wait.
+                    var delay = ComputeBackoff(attempt);
+                    var remaining = _options.Timeout - _time.GetElapsedTime(started);
+                    if (remaining > delay)
+                    {
+                        LogRetry(_logger, (int)response.StatusCode, attempt + 1, _options.MaxRetries, delay.TotalMilliseconds);
+                        await Task.Delay(delay, _time, timeout.Token);
+                        continue;
+                    }
+                }
+
+                return HandleResponse(response.StatusCode, body);
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -68,6 +86,28 @@ public sealed partial class GeminiLlmClient : ILlmClient
             LogNetworkError(_logger, ex.GetType().Name);
             throw new DependencyUnavailableException(ExternalDependency.Llm, "The LLM could not be reached.", ex);
         }
+    }
+
+    /// <summary>Provider errors worth retrying: overload or transient server faults. 429 (quota, CL-23) and 4xx are not.</summary>
+    private static bool IsTransient(HttpStatusCode status) =>
+        status is HttpStatusCode.ServiceUnavailable or HttpStatusCode.InternalServerError
+            or HttpStatusCode.BadGateway or HttpStatusCode.GatewayTimeout;
+
+    /// <summary>Exponential backoff (base * 2^attempt) with +-50% jitter.</summary>
+    private TimeSpan ComputeBackoff(int attempt)
+    {
+        var jitter = 0.5 + Random.Shared.NextDouble();
+        return TimeSpan.FromMilliseconds(_options.RetryBackoff.TotalMilliseconds * Math.Pow(2, attempt) * jitter);
+    }
+
+    private HttpRequestMessage BuildMessage(string path, LlmRequest request)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(GeminiRequestMapper.ToJson(request)),
+        };
+        message.Headers.TryAddWithoutValidation(ApiKeyHeader, _options.ApiKey);
+        return message;
     }
 
     private LlmResponse HandleResponse(HttpStatusCode status, string body)
@@ -128,6 +168,9 @@ public sealed partial class GeminiLlmClient : ILlmClient
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "LLM call timed out after {Seconds} s.")]
     private static partial void LogTimeout(ILogger logger, double seconds);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "LLM call failed with transient HTTP {StatusCode}; retry {Attempt}/{MaxRetries} in {DelayMs} ms.")]
+    private static partial void LogRetry(ILogger logger, int statusCode, int attempt, int maxRetries, double delayMs);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "LLM call failed with a network error ({ErrorType}).")]
     private static partial void LogNetworkError(ILogger logger, string errorType);

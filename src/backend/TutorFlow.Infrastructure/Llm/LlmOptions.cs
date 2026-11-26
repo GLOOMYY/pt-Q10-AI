@@ -35,6 +35,12 @@ public sealed class LlmOptions
     /// <summary>Timeout of one LLM call (R-QA-04: 30 s).</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>Retries after a transient provider error (HTTP 500/502/503/504); 0 disables them. Never exceeds <see cref="Timeout"/>.</summary>
+    public int MaxRetries { get; set; } = 2;
+
+    /// <summary>Base of the exponential retry backoff (doubles per retry, with jitter).</summary>
+    public TimeSpan RetryBackoff { get; set; } = TimeSpan.FromMilliseconds(500);
+
     /// <summary>Sampling temperature (R-QA-03: 0 for stable answers).</summary>
     public double Temperature { get; set; }
 
@@ -112,6 +118,16 @@ public sealed class LlmOptionsValidator : IValidateOptions<LlmOptions>
         if (options.Timeout <= TimeSpan.Zero)
         {
             failures.Add("The LLM timeout must be positive.");
+        }
+
+        if (options.MaxRetries < 0)
+        {
+            failures.Add("The LLM retry count must not be negative.");
+        }
+
+        if (options.RetryBackoff < TimeSpan.Zero)
+        {
+            failures.Add("The LLM retry backoff must not be negative.");
         }
 
         if (options.Temperature < 0)
