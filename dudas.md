@@ -529,3 +529,15 @@ Registro de dudas, atascos y bloqueos de permisos de la fábrica (AGENTS §3). S
 - **Qué quedó pendiente:** confirmar el criterio y, si persiste en ESC-BAN-04, mejorar la ordenación de la búsqueda (conocimiento).
 - **Propuesta:** mantener las reglas (cada cita añadida existe y se valida); afinar la del Artículo 11 a la asignatura perdida si los evals muestran falsos positivos.
 - **Respuesta:** _(pendiente del responsable)_
+
+## DUDA-45 · Cuota diaria de Gemini agotada
+
+- **Fecha:** 2026-11-26
+- **Rol / rama:** orquestador / —
+- **Referencia:** F5, CL-23, DUDA-43
+- **Tipo:** atasco (5 intentos)
+- **Bloqueante:** sí
+- **Descripción:** al reanudar F5 con el stack reconstruido sobre `main` (incluye el PR #29), Gemini responde `HTTP 429: You exceeded your current quota, please check your plan and billing details` en todas las peticiones durante más de 5 minutos (12 respuestas 429 seguidas). El backend responde 503 como exige CL-23, sin inventar datos. Es la cuota de la clave del `.env` del responsable, consumida por las tres pasadas anteriores.
+- **Qué quedó pendiente:** la pasada completa y limpia de `evals/` que verifica los PR #26 a #29 con el LLM real. El stack quedó detenido (`docker compose stop`).
+- **Propuesta:** el responsable amplía la cuota o el plan de la clave, o espera al reinicio diario de la cuota, y relanza: `docker compose up -d --build --wait` y `dotnet run --project evals/TutorFlow.Evals -c Release -- --file <archivo>` por cada archivo de escenarios (con memoria libre suficiente, DUDA-43).
+- **Respuesta:** _(pendiente del responsable)_
