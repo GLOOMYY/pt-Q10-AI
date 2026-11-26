@@ -123,6 +123,22 @@ public class StudentToolsTests
         Assert.Equal("2.3", lost["Estadística"]);
     }
 
+    // ESC-EST-01, CL-03, R-CAL-06: a course lost by absences is listed as lost with final grade 0.0 and its reason.
+    [Fact]
+    public async Task Course_lost_by_absences_is_listed_with_zero_and_its_reason()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("Perdiste Bases de Datos por inasistencia (0.0).", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Qué asignaturas perdí?", "EST-002");
+
+        var databases = h.ToolResult().GetProperty("asignaturasPerdidas").EnumerateArray()
+            .Single(c => Text(c, "asignatura") == "Bases de Datos");
+        Assert.Equal("0.0", Text(databases, "definitiva"));
+        Assert.Contains("inasistencia", Text(databases, "motivo"), StringComparison.Ordinal);
+    }
+
     // ESC-ENT-18, API-05: the id is normalized and the session id is used by the tools.
     [Fact]
     public async Task Normalized_identity_is_the_one_the_tools_use()
