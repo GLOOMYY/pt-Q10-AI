@@ -154,8 +154,13 @@ public sealed class AuditTrailIntegrationTests
         Assert.True(record.Tokens > 0);
 
         // R-LOG-02, R-LOG-05: no grades, no student names, no answer text, no secrets, no prompts (the question is kept as is, D-27).
+        // The timestamp and the numeric metrics (tokens, cost, duration) are machine-generated values that change on every
+        // run and can contain a grade-like digit sequence by chance (e.g. "...:04.1634539"): they are not text that can
+        // leak content, so only the textual fields are scanned. Every textual field except the question is still checked.
         var withoutQuestion = JsonSerializer.Serialize(
-            json.EnumerateObject().Where(p => p.Name != "pregunta").ToDictionary(p => p.Name, p => p.Value),
+            json.EnumerateObject()
+                .Where(p => p.Name is not ("pregunta" or "timestamp") && p.Value.ValueKind != JsonValueKind.Number)
+                .ToDictionary(p => p.Name, p => p.Value),
             Unescaped);
         foreach (var forbidden in new[] { "4.39", "4.1", "Laura", "Gómez", answer, FakeKey, "LLM_API_KEY", "Eres el asistente", "system" })
         {
