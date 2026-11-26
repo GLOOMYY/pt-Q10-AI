@@ -139,15 +139,49 @@ public sealed class KnowledgeBase : IKnowledgeBase
         return builder.ToString();
     }
 
-    /// <summary>Crude plural stripping so "becas" matches "beca" and "reclamos" matches "reclamo".</summary>
+    private static readonly string[] Enclitics = ["las", "los", "les", "nos", "la", "lo", "le", "se", "me"];
+
+    private static readonly string[] VerbEndings = ["ando", "iendo", "able", "abl", "ado", "ido", "ar", "er", "ir", "an", "en", "a", "e", "o"];
+
+    /// <summary>
+    /// Light, deterministic Spanish reduction applied to both corpus and query terms: strips plurals, enclitic
+    /// pronouns of infinitives ("consultarla" to "consultar") and common verb endings, so "pueden"/"puede" and
+    /// "consultarla"/"consultar" share a stem. Stems keep at least four letters to avoid over-matching.
+    /// </summary>
     private static string Stem(string term)
     {
         if (term.Length > 4 && term.EndsWith("es", StringComparison.Ordinal))
         {
-            return term[..^2];
+            term = term[..^2];
+        }
+        else if (term.Length > 3 && term.EndsWith('s'))
+        {
+            term = term[..^1];
         }
 
-        return term.Length > 3 && term.EndsWith('s') ? term[..^1] : term;
+        foreach (var enclitic in Enclitics)
+        {
+            if (term.EndsWith(enclitic, StringComparison.Ordinal) && term.Length - enclitic.Length >= 5)
+            {
+                var head = term[..^enclitic.Length];
+                if (head.EndsWith("ar", StringComparison.Ordinal) || head.EndsWith("er", StringComparison.Ordinal)
+                    || head.EndsWith("ir", StringComparison.Ordinal))
+                {
+                    term = head;
+                    break;
+                }
+            }
+        }
+
+        foreach (var ending in VerbEndings)
+        {
+            if (term.EndsWith(ending, StringComparison.Ordinal) && term.Length - ending.Length >= 4)
+            {
+                return term[..^ending.Length];
+            }
+        }
+
+        return term;
     }
 
     private sealed record IndexedSection(CorpusSection Section, HashSet<string> BodyTerms);
