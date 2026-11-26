@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\src\backend\TutorFlow.Application\TutorFlow.Application.csproj" />
     <ProjectReference Include="..\..\src\backend\TutorFlow.Domain\TutorFlow.Domain.csproj" />
     <ProjectReference Include="..\TutorFlow.Testing\TutorFlow.Testing.csproj" />
+    <ProjectReference Include="..\..\evals\TutorFlow.Scenarios\TutorFlow.Scenarios.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>
