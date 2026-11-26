@@ -1,0 +1,37 @@
+# Minimal build context for the Dockerfile (R-DEP-04: nothing sensitive or unneeded).
+
+# Secrets and local data: never copied into the image.
+.env
+.env.*
+!.env.example
+var/
+
+# Git, CI, hooks and agents: not part of the application.
+.git
+.gitignore
+.gitattributes
+.githooks/
+.github/
+.claude/
+
+# Not needed in the image: tests, evals, scenarios, material and project documents.
+tests/
+evals/
+escenarios/
+material/
+SPEC.md
+AGENTS.md
+CLAUDE.md
+FABRICA.md
+INTERVENCIONES.md
+REPORTE.md
+dudas.md
+docker-compose.yml
+
+# Build artifacts and local dependencies.
+**/bin/
+**/obj/
+**/TestResults/
+**/.vs/
+**/node_modules/
+**/dist/
