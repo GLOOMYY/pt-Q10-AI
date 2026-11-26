@@ -188,6 +188,41 @@ public class CoordinatorToolsTests
         Assert.Empty(h.Log.StudentsConsulted);
     }
 
+    // ESC-COO-12, R-RES-04, R-LOG-04: a roster listed for "my average" is not used to answer, so it is neither data
+    // used nor cited; the log still keeps the tool and the listing really made.
+    [Fact]
+    public async Task Roster_listed_for_own_average_is_not_data_used()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.ListProgramStudents))
+            .EnqueueText(AssistantHarness.Final(
+                "Como coordinador, tu rol no tiene datos académicos propios.",
+                ("Datos del programa", "ADM · periodo 2026-2")));
+
+        var answer = await h.AskCoordinatorAsync("¿Cuál es mi promedio?", "COORD-02");
+
+        Assert.Equal(AssistantOutcome.Answered, answer.Outcome);
+        Assert.False(answer.UsedStudentData);
+        Assert.Empty(answer.Citations);
+        Assert.Empty(h.Log.StudentsConsulted);
+        Assert.Contains(AssistantTools.ListProgramStudents, h.Log.Tools);
+        Assert.Contains("/programas/ADM/estudiantes", h.Log.ResourcesConsulted);
+    }
+
+    // ESC-COO-11, R-RES-04: a roster whose students the answer names is used, whatever the question says.
+    [Fact]
+    public async Task Roster_named_in_the_answer_is_data_used()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.ListProgramStudents))
+            .EnqueueText(AssistantHarness.Final("Laura Gómez (EST-001)."));
+
+        var answer = await h.AskCoordinatorAsync("¿Quién está en segundo?");
+
+        Assert.True(answer.UsedStudentData);
+        Assert.Equal([new Citation("Datos del programa", "ING-SIS · periodo 2026-2")], answer.Citations);
+    }
+
     // ESC-COO-13, R-SEG-12, D-21: a first name alone is ambiguous: matches of own programs only, no student chosen.
     [Theory]
     [InlineData("Laura", true)]

@@ -361,9 +361,50 @@ public static class StudentReport
         _ => "no cumple las condiciones de habilitación de los Artículos 6 y 7",
     };
 
-    private static string AverageText(StudentEvaluation evaluation) => evaluation.Average is { } average
-        ? NumberFormat.Average(average.Value) + (average.IsProvisional ? " (provisional)" : string.Empty)
-        : "sin promedio en el periodo";
+    private static string AverageText(StudentEvaluation evaluation)
+    {
+        if (evaluation.Average is not { } average)
+        {
+            return "sin promedio en el periodo";
+        }
+
+        var value = NumberFormat.Average(average.Value);
+        if (!average.IsProvisional)
+        {
+            return value;
+        }
+
+        // R-CAL-10, CL-26 (ESC-COO-10): a provisional average always travels with its alternative value.
+        return AlternativeText(evaluation) is { } alternative
+            ? $"{value} (provisional; {alternative})"
+            : $"{value} (provisional)";
+    }
+
+    /// <summary>
+    /// R-CAL-10, CL-26 (ESC-COO-10): the alternative of a provisional average, ready to copy, e.g.
+    /// "sería 3.34 si Inglés III se perdió por inasistencia"; <see langword="null"/> when there is none.
+    /// </summary>
+    private static string? AlternativeText(StudentEvaluation evaluation)
+    {
+        if (evaluation.Average is not { ValueIfUnknownAbsencesLost: { } alternative } average)
+        {
+            return null;
+        }
+
+        var codes = average.UnknownAbsenceCourseCodes.ToHashSet(StringComparer.Ordinal);
+        var names = evaluation.Courses.Where(c => codes.Contains(c.Code)).Select(c => c.Name).ToList();
+        if (names.Count == 0)
+        {
+            return null;
+        }
+
+        var verb = names.Count == 1 ? "se perdió" : "se perdieron";
+        return $"sería {NumberFormat.Average(alternative)} si {JoinNames(names)} {verb} por inasistencia";
+    }
+
+    private static string JoinNames(List<string> names) => names.Count == 1
+        ? names[0]
+        : string.Join(", ", names.Take(names.Count - 1)) + " y " + names[^1];
 
     private static string ScholarshipDetail(StudentEvaluation evaluation) =>
         $"promedio ponderado del periodo: {AverageText(evaluation)} (se requiere {NumberFormat.Grade(StudentEvaluator.ScholarshipMinimumAverage)} o más); "
@@ -506,6 +547,13 @@ public static class StudentReport
             {
                 json["valorSiEsasAsignaturasSePerdieronPorInasistencia"] = NumberFormat.Average(alternative);
             }
+
+            // R-CAL-10, CL-26 (ESC-COO-10): one sentence with the provisional value, what it depends on and the
+            // alternative, so the answer always gives both figures.
+            var depends = evaluation.Courses.Where(c => codes.Contains(c.Code)).Select(c => c.Name).ToList();
+            json["resumen"] = $"promedio ponderado del periodo: {NumberFormat.Average(average.Value)}, provisional porque no hay dato de inasistencias de {JoinNames(depends)}"
+                + (AlternativeText(evaluation) is { } text ? $"; {text}" : string.Empty)
+                + ". Menciona siempre los dos valores.";
         }
 
         if (inconsistent.Count > 0)

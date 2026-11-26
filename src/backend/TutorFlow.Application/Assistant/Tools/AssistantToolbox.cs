@@ -37,6 +37,9 @@ public sealed class AssistantToolbox
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
+    // Normalized word prefixes that show an answer talks about a grade simulation (R-CAL-11).
+    private static readonly string[] SimulationTriggers = ["corte", "proyeccion"];
+
     private readonly IAcademicDirectory _directory;
     private readonly StudentAuthorizer _authorizer;
     private readonly IKnowledgeBase _knowledge;
@@ -301,6 +304,16 @@ public sealed class AssistantToolbox
 
         result["citasReglas"] = RuleCitations([.. rules]);
         result["citasDatos"] = CitationsJson(user, access.Student!, state);
+
+        // R-CAL-11, R-RES-02 (ESC-SIM-09): an answer about the simulation talks about the cuts ("corte") or calls it a
+        // projection; it is backed by Evaluación "Sección 2" (cuts and weights) and "Sección 3" (formula and rounding),
+        // the same rules listed in citasReglas, so the validator adds the one the model left out.
+        foreach (var trigger in SimulationTriggers)
+        {
+            state.BackRule(new Citation(Evaluation, "Sección 2"), trigger);
+            state.BackRule(new Citation(Evaluation, "Sección 3"), trigger);
+        }
+
         return Completed(result);
     }
 
@@ -385,9 +398,9 @@ public sealed class AssistantToolbox
         {
             var roster = await _directory.GetProgramStudentsAsync(programId, cancellationToken).ConfigureAwait(false) ?? [];
 
-            // R-RES-04: listing a program counts as using student data when it is used to answer; R-LOG-06: it does
-            // not add consulted students (D-24).
-            state.MarkProgramData(programId);
+            // R-RES-04: listing a program counts as using student data only when it is used to answer (decided by
+            // ToolRunState.ResolveRosterUse with the final answer); R-LOG-06: it does not add consulted students (D-24).
+            state.RecordRoster(programId, roster);
             foreach (var student in roster)
             {
                 list.Add(new JsonObject

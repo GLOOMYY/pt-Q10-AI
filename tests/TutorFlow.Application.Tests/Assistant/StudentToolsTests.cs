@@ -261,6 +261,39 @@ public class StudentToolsTests
         Assert.Equal(StudentReport.NoData, Text(Course(h.ToolResult(), "ING-204").GetProperty("asistencia"), "inasistencias"));
     }
 
+    // ESC-COO-10, R-CAL-10, CL-26: the provisional average comes with a sentence that gives both values.
+    [Fact]
+    public async Task Provisional_average_summary_gives_both_values()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.AcademicStatus))
+            .EnqueueText(AssistantHarness.Final("4.11.", ("Datos del estudiante", Notas)));
+
+        await h.AskStudentAsync("¿Cuál es mi promedio del periodo?", "EST-003");
+
+        var summary = Text(h.ToolResult().GetProperty("promedioPeriodo"), "resumen");
+        Assert.Contains("4.11", summary, StringComparison.Ordinal);
+        Assert.Contains("sería 3.34 si Inglés III se perdió por inasistencia", summary, StringComparison.Ordinal);
+        Assert.Contains("3.34", Text(h.ToolResult().GetProperty("pruebaAcademica"), "detalle"), StringComparison.Ordinal);
+    }
+
+    // ESC-SIM-09, R-CAL-11, R-RES-02: an unreachable target answer that forgets Sección 3 gets it from the simulation.
+    [Fact]
+    public async Task Unreachable_simulation_keeps_both_evaluation_sections()
+    {
+        var h = new AssistantHarness();
+        h.Llm.EnqueueToolCalls(FakeLlmReply.Call(AssistantTools.SimulateRequiredGrade, new { asignatura = "Estadística", meta = 5.0 }))
+            .EnqueueText(AssistantHarness.Final(
+                "La meta de 5.0 ya no es alcanzable: haría falta más de 5.0 en el corte 3. Es una proyección.",
+                ("Datos del estudiante", Notas),
+                ("evaluacion_y_calificaciones.md", "Sección 2")));
+
+        var answer = await h.AskStudentAsync("¿Cuánto necesito en el corte 3 de Estadística para sacar 5.0 de definitiva?", "EST-006");
+
+        Assert.Contains(new Citation("evaluacion_y_calificaciones.md", "Sección 2"), answer.Citations);
+        Assert.Contains(new Citation("evaluacion_y_calificaciones.md", "Sección 3"), answer.Citations);
+    }
+
     // ESC-EST-06, ESC-EST-07, CL-05, R-QA-05: accumulated grade with 2 decimals; average over 8 credits.
     [Fact]
     public async Task Course_without_final_grade_reports_accumulated_with_two_decimals()
