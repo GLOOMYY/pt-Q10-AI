@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TutorFlow.Application.Ports.Clock;
 using TutorFlow.Infrastructure.AcademicApi;
+using TutorFlow.Infrastructure.Audit;
 using TutorFlow.Infrastructure.Clock;
 using TutorFlow.Infrastructure.Knowledge;
 using TutorFlow.Infrastructure.Llm;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddAcademicApi(configuration);
         services.AddKnowledge(configuration);
         services.AddLlm(configuration);
+        services.AddAuditLog(configuration);
 
         services.AddSingleton<IClock, SystemClock>();
 
